@@ -1,0 +1,48 @@
+## 1. WEDDINGS
+* Story Collection
+  - Couple Names (Required, auto-generates slug)
+  - Wedding Date (Optional, Calendar Day)
+  - Location
+  - Featured Image (Local storage)
+  - Gallery Images (JSON array)
+  - Slug (Auto-generated, unique, read-only)
+
+## 3. BLOG SYSTEM
+* Blog Posts
+  - Title (Required, auto-generates slug)
+  - Slug (Auto-generated, unique, read-only)
+  - Publish Date (Optional, Calendar Day)
+  - Cover Image (stoarge using file drop zone dont implement yet just ui)
+  - Content (Rich Text with formatting)
+  - Is Featured in Home Page (Checkbox)
+  - Is Featured in Story (Checkbox)
+  - Images (storage using file drop zone dont implement yet just ui)
+
+## 4. FILMS/VIDEOS
+* Wedding Films
+  - Title (Required)
+  - Couple Names (Required)
+  - Location
+  - Description (Rich text)
+  - Video URL
+
+
+## 6. TESTIMONIALS
+* Client Reviews
+  - Couple Names (Required)
+  - Wedding Date (Calendar Day)
+  - Location
+  - Review (Rich text)
+  - Photo (storage using file drop zone dont implement yet just ui)
+  - Video URL
+
+
+## 8. USERS
+* User Management
+  - Name (Required)
+  - Email (Required, unique)
+  - Password (Required)
+  - Role (Select)
+    > Admin
+    > Editor
+    > Viewer    
