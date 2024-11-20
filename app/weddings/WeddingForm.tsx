@@ -5,6 +5,8 @@ import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
 import { RiSaveLine, RiCloseLine } from 'react-icons/ri';
+import ImageDropzone from '../components/forms/ImageDropzone';
+import FormModal from '../components/forms/FormModal';
 
 type WeddingFormProps = {
   onClose: () => void;
@@ -16,7 +18,7 @@ export type WeddingFormData = {
   coupleNames: string;
   weddingDate: string;
   location: string;
-  featuredImage?: File;
+  featuredImage?: File[];
   galleryImages?: File[];
 };
 
@@ -33,18 +35,12 @@ export default function WeddingForm({ onClose, onSubmit, initialData }: WeddingF
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold">
-            {initialData ? 'Edit Wedding Story' : 'Add Wedding Story'}
-          </h2>
-          <Button variant="secondary" icon={RiCloseLine} onClick={onClose}>
-            Close
-          </Button>
-        </div>
-
-        <form onSubmit={handleSubmit}>
+    <FormModal
+      title={initialData ? 'Edit Wedding Gallery' : 'Add Wedding Gallery'}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-2 gap-6">
           <FormField label="Couple Names" required>
             <Input
               required
@@ -61,38 +57,42 @@ export default function WeddingForm({ onClose, onSubmit, initialData }: WeddingF
               onChange={(e) => setFormData({ ...formData, weddingDate: e.target.value })}
             />
           </FormField>
+        </div>
 
-          <FormField label="Location">
-            <Input
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              placeholder="e.g., Mumbai, India"
-            />
-          </FormField>
+        <FormField label="Location">
+          <Input
+            value={formData.location}
+            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+            placeholder="e.g., Mumbai, India"
+          />
+        </FormField>
 
+        <div className="grid grid-cols-2 gap-6">
           <FormField label="Featured Image">
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  setFormData({ ...formData, featuredImage: file });
-                }
-              }}
+            <ImageDropzone
+              onChange={(files) => setFormData({ ...formData, featuredImage: files })}
+              value={formData.featuredImage}
             />
           </FormField>
 
-          <div className="flex justify-end space-x-4 mt-6">
-            <Button variant="secondary" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" icon={RiSaveLine}>
-              Save Wedding Story
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <FormField label="Gallery Images">
+            <ImageDropzone
+              multiple
+              onChange={(files) => setFormData({ ...formData, galleryImages: files })}
+              value={formData.galleryImages}
+            />
+          </FormField>
+        </div>
+
+        <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" icon={RiSaveLine}>
+            Save Wedding Gallery
+          </Button>
+        </div>
+      </form>
+    </FormModal>
   );
 } 

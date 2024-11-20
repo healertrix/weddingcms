@@ -1,10 +1,16 @@
-import { IconType } from 'react-icons';
-import { RiDashboardLine, RiUserLine, RiVideoLine, RiArticleLine, RiHeartsLine, RiStarLine } from 'react-icons/ri';
+import { 
+  RiDashboardLine, 
+  RiUserLine, 
+  RiVideoLine, 
+  RiArticleLine, 
+  RiHeartsLine, 
+  RiStarLine 
+} from 'react-icons/ri';
 
 export type NavigationItem = {
   label: string;
   path: string;
-  icon: IconType;
+  icon: typeof RiDashboardLine;
 };
 
 export const navigationItems: NavigationItem[] = [
@@ -14,7 +20,7 @@ export const navigationItems: NavigationItem[] = [
     icon: RiDashboardLine
   },
   {
-    label: 'Weddings',
+    label: 'Wedding Gallery',
     path: '/weddings',
     icon: RiHeartsLine
   },

@@ -5,16 +5,19 @@ import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import { RiAddLine, RiEditLine, RiDeleteBin6Line } from 'react-icons/ri';
 import WeddingForm, { WeddingFormData } from './WeddingForm';
+import { formatDate } from '../utils/dateFormat';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function WeddingsPage() {
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingWedding, setDeletingWedding] = useState<string | null>(null);
   const [weddings, setWeddings] = useState<WeddingFormData[]>([
     {
       coupleNames: 'Priya & Rahul',
       weddingDate: '2024-03-15',
       location: 'Delhi',
     },
-    // Add more sample data as needed
   ]);
   const [editingWedding, setEditingWedding] = useState<WeddingFormData | null>(null);
 
@@ -30,20 +33,27 @@ export default function WeddingsPage() {
     setEditingWedding(null);
   };
 
-  const handleDelete = (coupleNames: string) => {
-    if (confirm('Are you sure you want to delete this wedding story?')) {
-      setWeddings(weddings.filter(w => w.coupleNames !== coupleNames));
+  const handleDeleteClick = (coupleNames: string) => {
+    setDeletingWedding(coupleNames);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deletingWedding) {
+      setWeddings(weddings.filter(w => w.coupleNames !== deletingWedding));
+      setShowDeleteConfirm(false);
+      setDeletingWedding(null);
     }
   };
 
   return (
     <div className='p-8'>
       <PageHeader
-        title="Wedding Stories"
-        description="Manage wedding stories and collections"
+        title="Wedding Gallery"
+        description="Manage wedding galleries and collections"
         action={
           <Button icon={RiAddLine} onClick={() => setShowForm(true)}>
-            Add Story
+            Add Gallery
           </Button>
         }
       />
@@ -55,7 +65,7 @@ export default function WeddingsPage() {
               <div>
                 <h3 className='text-lg font-medium'>{wedding.coupleNames}</h3>
                 <div className='mt-1 flex items-center text-sm text-gray-500 space-x-4'>
-                  <span>Date: {new Date(wedding.weddingDate).toLocaleDateString()}</span>
+                  <span>Date: {formatDate(wedding.weddingDate)}</span>
                   <span>Location: {wedding.location}</span>
                 </div>
               </div>
@@ -73,7 +83,7 @@ export default function WeddingsPage() {
                 <Button 
                   variant='secondary' 
                   icon={RiDeleteBin6Line}
-                  onClick={() => handleDelete(wedding.coupleNames)}
+                  onClick={() => handleDeleteClick(wedding.coupleNames)}
                   className="text-red-600 hover:bg-red-50"
                 >
                   Delete
@@ -94,6 +104,17 @@ export default function WeddingsPage() {
           initialData={editingWedding || undefined}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setDeletingWedding(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Wedding Gallery"
+        message="Are you sure you want to delete this wedding gallery? This action cannot be undone."
+      />
     </div>
   );
 } 

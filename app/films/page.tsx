@@ -5,9 +5,12 @@ import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import { RiAddLine, RiEditLine, RiDeleteBin6Line } from 'react-icons/ri';
 import FilmForm, { FilmFormData } from './FilmForm';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function FilmsPage() {
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingFilm, setDeletingFilm] = useState<string | null>(null);
   const [films, setFilms] = useState<FilmFormData[]>([
     {
       title: 'A Magical Day',
@@ -31,9 +34,16 @@ export default function FilmsPage() {
     setEditingFilm(null);
   };
 
-  const handleDelete = (title: string) => {
-    if (confirm('Are you sure you want to delete this film?')) {
-      setFilms(films.filter(f => f.title !== title));
+  const handleDeleteClick = (title: string) => {
+    setDeletingFilm(title);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deletingFilm) {
+      setFilms(films.filter(f => f.title !== deletingFilm));
+      setShowDeleteConfirm(false);
+      setDeletingFilm(null);
     }
   };
 
@@ -74,7 +84,7 @@ export default function FilmsPage() {
                 <Button 
                   variant='secondary' 
                   icon={RiDeleteBin6Line}
-                  onClick={() => handleDelete(film.title)}
+                  onClick={() => handleDeleteClick(film.title)}
                   className="text-red-600 hover:bg-red-50"
                 >
                   Delete
@@ -95,6 +105,17 @@ export default function FilmsPage() {
           initialData={editingFilm || undefined}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setDeletingFilm(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Film"
+        message="Are you sure you want to delete this film? This action cannot be undone."
+      />
     </div>
   );
 } 

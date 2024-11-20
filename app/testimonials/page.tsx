@@ -5,6 +5,8 @@ import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import { RiAddLine, RiEditLine, RiDeleteBin6Line } from 'react-icons/ri';
 import TestimonialForm, { TestimonialFormData } from './TestimonialForm';
+import { formatDate } from '../utils/dateFormat';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function TestimonialsPage() {
   const [showForm, setShowForm] = useState(false);
@@ -18,6 +20,8 @@ export default function TestimonialsPage() {
     },
   ]);
   const [editingTestimonial, setEditingTestimonial] = useState<TestimonialFormData | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingTestimonial, setDeletingTestimonial] = useState<string | null>(null);
 
   const handleSubmit = (data: TestimonialFormData) => {
     if (editingTestimonial) {
@@ -31,9 +35,16 @@ export default function TestimonialsPage() {
     setEditingTestimonial(null);
   };
 
-  const handleDelete = (coupleNames: string) => {
-    if (confirm('Are you sure you want to delete this testimonial?')) {
-      setTestimonials(testimonials.filter(t => t.coupleNames !== coupleNames));
+  const handleDeleteClick = (coupleNames: string) => {
+    setDeletingTestimonial(coupleNames);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deletingTestimonial) {
+      setTestimonials(testimonials.filter(t => t.coupleNames !== deletingTestimonial));
+      setShowDeleteConfirm(false);
+      setDeletingTestimonial(null);
     }
   };
 
@@ -56,7 +67,7 @@ export default function TestimonialsPage() {
               <div>
                 <h3 className='text-lg font-medium'>{testimonial.coupleNames}</h3>
                 <div className='mt-1 flex items-center text-sm text-gray-500 space-x-4'>
-                  <span>Wedding Date: {new Date(testimonial.weddingDate).toLocaleDateString()}</span>
+                  <span>Wedding Date: {formatDate(testimonial.weddingDate)}</span>
                   <span>Location: {testimonial.location}</span>
                 </div>
                 <p className='mt-2 text-gray-600 line-clamp-2'>{testimonial.review}</p>
@@ -75,7 +86,7 @@ export default function TestimonialsPage() {
                 <Button 
                   variant='secondary' 
                   icon={RiDeleteBin6Line}
-                  onClick={() => handleDelete(testimonial.coupleNames)}
+                  onClick={() => handleDeleteClick(testimonial.coupleNames)}
                   className="text-red-600 hover:bg-red-50"
                 >
                   Delete
@@ -96,6 +107,17 @@ export default function TestimonialsPage() {
           initialData={editingTestimonial || undefined}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setDeletingTestimonial(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Testimonial"
+        message="Are you sure you want to delete this testimonial? This action cannot be undone."
+      />
     </div>
   );
 } 

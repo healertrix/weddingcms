@@ -1,57 +1,83 @@
-import Image from "next/image";
+'use client';
+
+import { RiCalendarLine, RiVideoLine, RiArticleLine, RiUserSmileLine } from 'react-icons/ri';
+import Link from 'next/link';
 
 export default function Dashboard() {
   return (
-    <div className='p-10'>
-      <div className='text-center mb-12'>
-        <h1 className='text-6xl font-normal mb-6'>
-          Plan. Celebrate. Cherish.
+    <div className='p-10 h-full overflow-y-auto'>
+      <div className='mb-8'>
+        <h1 className='text-4xl font-normal mb-4'>
+          Welcome to Wedding Theory CMS
         </h1>
-        <p className='text-gray-600 mb-8 max-w-2xl mx-auto leading-relaxed'>
-          At Wedding Theory, we capture the vibrant colors and rich traditions
-          of Indian weddings. From the mehndi ceremony to the grand reception,
-          we preserve every precious moment.
+        <p className='text-gray-600 max-w-3xl leading-relaxed'>
+          Manage your wedding stories, films, and content all in one place. Keep track of your latest projects and client testimonials.
         </p>
-        <div className='flex justify-center space-x-6'>
-          <button className='bg-[#8B4513] text-white px-8 py-3 rounded-full shadow-md hover:bg-[#723A0F] transition-all'>
-            Get in Touch
-          </button>
-          <button className='bg-white text-gray-800 px-8 py-3 rounded-full shadow-md hover:bg-gray-50 transition-all'>
-            Book a demo
-          </button>
-        </div>
       </div>
 
-      <div className='grid grid-cols-3 gap-8'>
-        {/* Example Card */}
-        <div className='bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
-          <h2 className='text-2xl font-normal mb-4'>Event Insights</h2>
-          <ul className='text-gray-600 space-y-2'>
-            <li>Guests: 150</li>
-            <li>Budget: $20,000</li>
-            <li>Vendors: 5</li>
-            <li>Tasks: 12</li>
-          </ul>
-        </div>
+      {/* Quick Stats */}
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
+        <Link href="/weddings">
+          <div className='bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105'>
+            <div className='flex items-center space-x-3 mb-4'>
+              <RiCalendarLine className='w-6 h-6 text-[#8B4513]' />
+              <h3 className='text-lg font-medium'>Wedding Gallery</h3>
+            </div>
+            <p className='text-3xl font-semibold'>12</p>
+          </div>
+        </Link>
 
-        {/* Another Card */}
-        <div className='bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
-          <h2 className='text-2xl font-normal mb-4'>Wedding Themes</h2>
-          <p className='text-gray-600 mb-4'>Which theme do you prefer?</p>
-          <ul className='text-gray-600 space-y-2'>
-            <li>Traditional</li>
-            <li>Contemporary</li>
-            <li>Royal</li>
-            <li>Destination</li>
-          </ul>
-        </div>
+        <Link href="/films">
+          <div className='bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105'>
+            <div className='flex items-center space-x-3 mb-4'>
+              <RiVideoLine className='w-6 h-6 text-[#8B4513]' />
+              <h3 className='text-lg font-medium'>Recent Films</h3>
+            </div>
+            <p className='text-3xl font-semibold'>8</p>
+          </div>
+        </Link>
 
-        {/* Profile Card */}
-        <div className='bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
-          <h2 className='text-2xl font-normal mb-4'>Sarah Mickella</h2>
-          <p className='text-gray-600'>sarah@weddingtheory.com</p>
-          <p className='text-gray-600 mt-4'>Event Date: 30 Mar 2024</p>
-          <p className='text-gray-600'>Tasks Completed: 48</p>
+        <Link href="/blog">
+          <div className='bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105'>
+            <div className='flex items-center space-x-3 mb-4'>
+              <RiArticleLine className='w-6 h-6 text-[#8B4513]' />
+              <h3 className='text-lg font-medium'>Blog Posts</h3>
+            </div>
+            <p className='text-3xl font-semibold'>24</p>
+          </div>
+        </Link>
+
+        <Link href="/testimonials">
+          <div className='bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105'>
+            <div className='flex items-center space-x-3 mb-4'>
+              <RiUserSmileLine className='w-6 h-6 text-[#8B4513]' />
+              <h3 className='text-lg font-medium'>Testimonials</h3>
+            </div>
+            <p className='text-3xl font-semibold'>45</p>
+          </div>
+        </Link>
+      </div>
+
+      {/* Recent Activity */}
+      <div className='bg-white rounded-lg shadow-sm'>
+        <div className='p-6'>
+          <h2 className='text-2xl font-normal mb-6'>Recent Activity</h2>
+          <div className='space-y-4 max-h-[calc(100vh-24rem)] overflow-y-auto'>
+            {[
+              { action: 'New wedding story added', details: 'Priya & Rahul - Delhi Wedding', time: '2 hours ago' },
+              { action: 'Film uploaded', details: 'Sarah & Mike\'s Wedding Highlights', time: '5 hours ago' },
+              { action: 'Blog post published', details: 'Top Wedding Trends 2024', time: '1 day ago' },
+              { action: 'New testimonial received', details: 'From Anjali & Vikram', time: '2 days ago' },
+            ].map((item, index) => (
+              <div key={index} className='flex items-center justify-between p-3 border-b last:border-0'>
+                <div>
+                  <p className='font-medium'>{item.action}</p>
+                  <p className='text-sm text-gray-600'>{item.details}</p>
+                </div>
+                <span className='text-sm text-gray-500'>{item.time}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

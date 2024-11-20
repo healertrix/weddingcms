@@ -5,6 +5,8 @@ import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import { RiAddLine, RiEditLine, RiDeleteBin6Line } from 'react-icons/ri';
 import BlogForm, { BlogFormData } from './BlogForm';
+import { formatDate } from '../utils/dateFormat';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function BlogPage() {
   const [showForm, setShowForm] = useState(false);
@@ -18,6 +20,8 @@ export default function BlogPage() {
     },
   ]);
   const [editingBlog, setEditingBlog] = useState<BlogFormData | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingBlog, setDeletingBlog] = useState<string | null>(null);
 
   const handleSubmit = (data: BlogFormData) => {
     if (editingBlog) {
@@ -31,9 +35,16 @@ export default function BlogPage() {
     setEditingBlog(null);
   };
 
-  const handleDelete = (title: string) => {
-    if (confirm('Are you sure you want to delete this blog post?')) {
-      setBlogs(blogs.filter(b => b.title !== title));
+  const handleDeleteClick = (title: string) => {
+    setDeletingBlog(title);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deletingBlog) {
+      setBlogs(blogs.filter(b => b.title !== deletingBlog));
+      setShowDeleteConfirm(false);
+      setDeletingBlog(null);
     }
   };
 
@@ -56,7 +67,7 @@ export default function BlogPage() {
               <div>
                 <h3 className='text-lg font-medium'>{blog.title}</h3>
                 <div className='mt-1 flex items-center text-sm text-gray-500 space-x-4'>
-                  <span>Published: {new Date(blog.publishDate).toLocaleDateString()}</span>
+                  <span>Published: {formatDate(blog.publishDate)}</span>
                   {blog.isFeaturedHome && <span className="text-[#8B4513]">Featured Home</span>}
                   {blog.isFeaturedStory && <span className="text-[#8B4513]">Featured Story</span>}
                 </div>
@@ -75,7 +86,7 @@ export default function BlogPage() {
                 <Button 
                   variant='secondary' 
                   icon={RiDeleteBin6Line}
-                  onClick={() => handleDelete(blog.title)}
+                  onClick={() => handleDeleteClick(blog.title)}
                   className="text-red-600 hover:bg-red-50"
                 >
                   Delete
@@ -96,6 +107,17 @@ export default function BlogPage() {
           initialData={editingBlog || undefined}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setDeletingBlog(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Blog Post"
+        message="Are you sure you want to delete this blog post? This action cannot be undone."
+      />
     </div>
   );
 } 

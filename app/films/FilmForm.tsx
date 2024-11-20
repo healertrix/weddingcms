@@ -4,7 +4,8 @@ import { useState } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine, RiCloseLine } from 'react-icons/ri';
+import { RiSaveLine } from 'react-icons/ri';
+import FormModal from '../components/forms/FormModal';
 
 type FilmFormProps = {
   onClose: () => void;
@@ -35,18 +36,12 @@ export default function FilmForm({ onClose, onSubmit, initialData }: FilmFormPro
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold">
-            {initialData ? 'Edit Film' : 'Add Film'}
-          </h2>
-          <Button variant="secondary" icon={RiCloseLine} onClick={onClose}>
-            Close
-          </Button>
-        </div>
-
-        <form onSubmit={handleSubmit}>
+    <FormModal
+      title={initialData ? 'Edit Film' : 'Add Film'}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-2 gap-6">
           <FormField label="Title" required>
             <Input
               required
@@ -64,45 +59,45 @@ export default function FilmForm({ onClose, onSubmit, initialData }: FilmFormPro
               placeholder="e.g., Sarah & John"
             />
           </FormField>
+        </div>
 
-          <FormField label="Location">
-            <Input
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              placeholder="e.g., Mumbai, India"
-            />
-          </FormField>
+        <FormField label="Location">
+          <Input
+            value={formData.location}
+            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+            placeholder="e.g., Mumbai, India"
+          />
+        </FormField>
 
-          <FormField label="Description">
-            <textarea
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 border-gray-300 focus:ring-[#8B4513]"
-              rows={4}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Write film description here..."
-            />
-          </FormField>
+        <FormField label="Description">
+          <textarea
+            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 border-gray-300 focus:ring-[#8B4513]"
+            rows={8}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Write film description here..."
+          />
+        </FormField>
 
-          <FormField label="Video URL" required>
-            <Input
-              required
-              type="url"
-              value={formData.videoUrl}
-              onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-              placeholder="Enter video URL"
-            />
-          </FormField>
+        <FormField label="Video URL" required>
+          <Input
+            required
+            type="url"
+            value={formData.videoUrl}
+            onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+            placeholder="Enter video URL (e.g., YouTube, Vimeo)"
+          />
+        </FormField>
 
-          <div className="flex justify-end space-x-4 mt-6">
-            <Button variant="secondary" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" icon={RiSaveLine}>
-              Save Film
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" icon={RiSaveLine}>
+            Save Film
+          </Button>
+        </div>
+      </form>
+    </FormModal>
   );
 } 
