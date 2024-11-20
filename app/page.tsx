@@ -1,9 +1,40 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { RiCalendarLine, RiVideoLine, RiArticleLine, RiUserSmileLine } from 'react-icons/ri';
 import Link from 'next/link';
+import { createClient } from './utils/supabase/client';
+import Notification from './components/Notification';
 
 export default function Dashboard() {
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase.from('Test').select('*').limit(1);
+        
+        if (error) {
+          throw error;
+        }
+        
+        setNotificationMessage('Successfully connected to Supabase');
+        setNotificationType('success');
+        setShowNotification(true);
+      } catch (error) {
+        console.error('Connection error:', error);
+        setNotificationMessage('Failed to connect to Supabase');
+        setNotificationType('error');
+        setShowNotification(true);
+      }
+    };
+
+    checkConnection();
+  }, []);
+
   return (
     <div className='p-10 h-full overflow-y-auto'>
       <div className='mb-8'>
@@ -80,6 +111,13 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <Notification
+        show={showNotification}
+        message={notificationMessage}
+        type={notificationType}
+        onClose={() => setShowNotification(false)}
+      />
     </div>
   );
 }
