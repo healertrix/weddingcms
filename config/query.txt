@@ -1,0 +1,157 @@
+-- Enable UUID extension if not already enabled
+create extension if not exists "uuid-ossp";
+
+-- Weddings Table
+create table weddings (
+  id uuid default gen_random_uuid() primary key,
+  couple_names text not null,
+  wedding_date date not null,
+  location text not null,
+  featured_image_key text not null,
+  status text not null default 'draft' check (status in ('draft', 'published', 'archived')),
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Wedding Gallery Images
+create table wedding_gallery_images (
+  id uuid default gen_random_uuid() primary key,
+  wedding_id uuid references weddings(id) on delete cascade,
+  image_key text not null,
+  order_index int not null,
+  alt_text text,
+  created_at timestamp with time zone default now(),
+  unique(wedding_id, order_index)
+);
+
+-- Films Table
+create table films (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  couple_names text not null,
+  wedding_date date not null,
+  location text not null,
+  description text,
+  video_url text not null,
+  status text not null default 'draft' check (status in ('draft', 'published', 'archived')),
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Blog Posts Table
+create table blog_posts (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  slug text not null unique,
+  content text not null,
+  featured_image_key text,
+  status text not null default 'draft' check (status in ('draft', 'published', 'archived')),
+  published_at timestamp with time zone,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Blog Post Images
+create table blog_post_images (
+  id uuid default gen_random_uuid() primary key,
+  blog_post_id uuid references blog_posts(id) on delete cascade,
+  image_key text not null,
+  order_index int not null,
+  alt_text text,
+  created_at timestamp with time zone default now(),
+  unique(blog_post_id, order_index)
+);
+
+-- Testimonials Table
+create table testimonials (
+  id uuid default gen_random_uuid() primary key,
+  couple_names text not null,
+  wedding_date date not null,
+  location text not null,
+  review text not null,
+  video_url text,
+  image_key text,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Create indexes for performance
+create index wedding_gallery_images_wedding_idx on wedding_gallery_images(wedding_id);
+create index blog_post_images_post_idx on blog_post_images(blog_post_id);
+create index weddings_status_idx on weddings(status);
+create index films_status_idx on films(status);
+create index blog_posts_status_idx on blog_posts(status);
+create index blog_posts_slug_idx on blog_posts(slug);
+create index testimonials_status_idx on testimonials(status);
+
+-- Create trigger function
+create or replace function update_updated_at_column()
+returns trigger as $$
+begin
+    new.updated_at = current_timestamp;
+    return new;
+end;
+$$ language plpgsql;
+
+-- Add triggers for each table that has updated_at
+create trigger update_weddings_updated_at
+    before update on weddings
+    for each row
+    execute function update_updated_at_column();
+
+create trigger update_films_updated_at
+    before update on films
+    for each row
+    execute function update_updated_at_column();
+
+create trigger update_blog_posts_updated_at
+    before update on blog_posts
+    for each row
+    execute function update_updated_at_column();
+
+create trigger update_testimonials_updated_at
+    before update on testimonials
+    for each row
+    execute function update_updated_at_column();
+
+-- Add RLS policies
+alter table weddings enable row level security;
+alter table wedding_gallery_images enable row level security;
+alter table films enable row level security;
+alter table blog_posts enable row level security;
+alter table blog_post_images enable row level security;
+alter table testimonials enable row level security;
+
+-- Create policies for public read access
+create policy "Public read access for published weddings"
+    on weddings for select
+    using (status = 'published');
+
+create policy "Public read access for wedding gallery"
+    on wedding_gallery_images for select
+    using (exists (
+        select 1 from weddings
+        where weddings.id = wedding_id
+        and weddings.status = 'published'
+    ));
+
+create policy "Public read access for published films"
+    on films for select
+    using (status = 'published');
+
+create policy "Public read access for published blog posts"
+    on blog_posts for select
+    using (status = 'published');
+
+create policy "Public read access for blog images"
+    on blog_post_images for select
+    using (exists (
+        select 1 from blog_posts
+        where blog_posts.id = blog_post_id
+        and blog_posts.status = 'published'
+    ));
+
+create policy "Public read access for approved testimonials"
+    on testimonials for select
+    using (status = 'approved');
