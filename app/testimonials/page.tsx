@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
-import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine } from 'react-icons/ri';
+import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiUserSmileLine, RiVideoLine } from 'react-icons/ri';
 import TestimonialForm, { TestimonialFormData } from './TestimonialForm';
 import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
@@ -22,6 +22,11 @@ type Testimonial = {
   video_url: string | null;
   image_key: string | null;
   status: TestimonialStatus;
+};
+
+const formatReview = (review: string) => {
+  const strippedContent = review.replace(/<[^>]+>/g, ' ').trim();
+  return strippedContent.length > 150 ? `${strippedContent.substring(0, 150)}...` : strippedContent;
 };
 
 export default function TestimonialsPage() {
@@ -197,7 +202,6 @@ export default function TestimonialsPage() {
           }
         />
 
-        {/* Add search box */}
         <div className="mt-4 relative">
           <div className="relative">
             <input
@@ -219,57 +223,85 @@ export default function TestimonialsPage() {
         <div className='flex-1 overflow-y-auto'>
           <div className='grid grid-cols-1 gap-4 p-6'>
             {filteredTestimonials.map((testimonial) => (
-              <div key={testimonial.id} className='flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50'>
-                <div>
-                  <h3 className='text-lg font-medium'>{testimonial.couple_names}</h3>
-                  <div className='mt-1 flex items-center text-sm text-gray-500 space-x-4'>
-                    <span>Wedding Date: {formatDate(testimonial.wedding_date)}</span>
-                    <span>Location: {testimonial.location}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      testimonial.status === 'published' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {testimonial.status === 'published' ? 'Published' : 'Draft'}
-                    </span>
+              <div key={testimonial.id} className='flex flex-col p-6 border rounded-lg hover:bg-gray-50 transition-all duration-200 group'>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className='text-xl font-medium text-gray-900 truncate'>{testimonial.couple_names}</h3>
+                      <span className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-medium ${
+                        testimonial.status === 'published' 
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {testimonial.status === 'published' ? 'Published' : 'Draft'}
+                      </span>
+                    </div>
+                    
+                    <div className='flex items-center text-sm text-gray-500 space-x-4 mb-3 flex-wrap'>
+                      <span className="flex items-center flex-shrink-0">
+                        <RiCalendarLine className="mr-1" />
+                        {formatDate(testimonial.wedding_date)}
+                      </span>
+                      <span className="flex items-center flex-shrink-0">
+                        <RiMapPinLine className="mr-1" />
+                        <span className="truncate max-w-[200px]">{testimonial.location}</span>
+                      </span>
+                      {testimonial.video_url && (
+                        <span className="flex items-center flex-shrink-0">
+                          <RiVideoLine className="mr-1" />
+                          <span className="truncate max-w-[200px]">Video Available</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className='mt-2 text-gray-600 line-clamp-2'>{testimonial.review}</p>
+
+                  <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    {getStatusActions(testimonial)}
+                    <Button 
+                      variant='secondary' 
+                      icon={RiEditLine}
+                      onClick={() => {
+                        setEditingTestimonial(testimonial);
+                        setShowForm(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button 
+                      variant='secondary' 
+                      icon={RiDeleteBin6Line}
+                      onClick={() => handleDeleteClick(testimonial.id)}
+                      className="text-red-600 hover:bg-red-50"
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex gap-6 mt-4">
                   {testimonial.image_key && (
-                    <div className="mt-2">
+                    <div className="flex-shrink-0">
                       <img 
                         src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/testimonial-images/${testimonial.image_key}`}
                         alt={`${testimonial.couple_names} testimonial`}
-                        className="h-20 w-32 object-cover rounded"
+                        className="w-48 h-32 object-cover rounded-lg"
                       />
                     </div>
                   )}
-                </div>
-                <div className="flex items-center space-x-2">
-                  {getStatusActions(testimonial)}
-                  <Button 
-                    variant='secondary' 
-                    icon={RiEditLine}
-                    onClick={() => {
-                      setEditingTestimonial(testimonial);
-                      setShowForm(true);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button 
-                    variant='secondary' 
-                    icon={RiDeleteBin6Line}
-                    onClick={() => handleDeleteClick(testimonial.id)}
-                    className="text-red-600 hover:bg-red-50"
-                  >
-                    Delete
-                  </Button>
+                  <div className="flex-1 min-w-0">
+                    <div className="prose prose-sm max-w-none text-gray-600">
+                      <p className="line-clamp-3 break-words">
+                        {formatReview(testimonial.review)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
             {filteredTestimonials.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No testimonials found matching your search.
+              <div className="text-center py-12 text-gray-500">
+                <RiUserSmileLine className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg">No testimonials found matching your search.</p>
               </div>
             )}
           </div>

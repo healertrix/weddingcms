@@ -104,7 +104,7 @@ export default function WeddingsPage() {
     }
   };
 
-  const handleSubmit = async (data: WeddingFormData) => {
+  const handleSubmit = async (data: WeddingFormData, asDraft: boolean = false) => {
     try {
       const now = new Date().toISOString();
       
@@ -117,6 +117,8 @@ export default function WeddingsPage() {
             wedding_date: data.weddingDate,
             location: data.location,
             featured_image_key: data.featuredImageKey,
+            is_featured_home: data.isFeaturedHome,
+            status: asDraft ? 'draft' : 'published',
             updated_at: now
           })
           .eq('id', editingWedding.id);
@@ -131,6 +133,8 @@ export default function WeddingsPage() {
                 wedding_date: data.weddingDate,
                 location: data.location,
                 featured_image_key: data.featuredImageKey,
+                is_featured_home: data.isFeaturedHome,
+                status: asDraft ? 'draft' : 'published',
                 updated_at: now
               }
             : w
@@ -145,7 +149,8 @@ export default function WeddingsPage() {
             wedding_date: data.weddingDate,
             location: data.location,
             featured_image_key: data.featuredImageKey,
-            status: 'draft',
+            is_featured_home: data.isFeaturedHome,
+            status: asDraft ? 'draft' : 'published',
             created_at: now,
             updated_at: now
           }])
@@ -324,12 +329,15 @@ export default function WeddingsPage() {
             setShowForm(false);
             setEditingWedding(null);
           }}
-          onSubmit={handleSubmit}
+          onSubmit={(data) => handleSubmit(data, false)}
+          onSaveAsDraft={(data) => handleSubmit(data, true)}
           initialData={editingWedding ? {
             coupleNames: editingWedding.couple_names,
             weddingDate: editingWedding.wedding_date,
             location: editingWedding.location,
             featuredImageKey: editingWedding.featured_image_key,
+            galleryImages: [],
+            isFeaturedHome: editingWedding.is_featured_home || false
           } : undefined}
         />
       )}
