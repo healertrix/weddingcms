@@ -11,6 +11,7 @@ import FormModal from '../components/forms/FormModal';
 type TestimonialFormProps = {
   onClose: () => void;
   onSubmit: (data: TestimonialFormData) => void;
+  onSaveAsDraft: (data: TestimonialFormData) => void;
   initialData?: TestimonialFormData;
 };
 
@@ -23,7 +24,7 @@ export type TestimonialFormData = {
   videoUrl?: string;
 };
 
-export default function TestimonialForm({ onClose, onSubmit, initialData }: TestimonialFormProps) {
+export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, initialData }: TestimonialFormProps) {
   const [formData, setFormData] = useState<TestimonialFormData>(initialData || {
     coupleNames: '',
     weddingDate: '',
@@ -100,12 +101,15 @@ export default function TestimonialForm({ onClose, onSubmit, initialData }: Test
           </FormField>
         </div>
 
-        <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
+        <div className="mt-6 flex justify-end space-x-3">
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" icon={RiSaveLine}>
-            Save Testimonial
+          <Button variant="secondary" onClick={() => onSaveAsDraft(formData)}>
+            Save as Draft
+          </Button>
+          <Button onClick={() => onSubmit(formData)}>
+            Submit for Review
           </Button>
         </div>
       </form>

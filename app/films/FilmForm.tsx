@@ -4,27 +4,30 @@ import { useState } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine } from 'react-icons/ri';
+import { RiSaveLine, RiDraftLine } from 'react-icons/ri';
 import FormModal from '../components/forms/FormModal';
 
 type FilmFormProps = {
   onClose: () => void;
   onSubmit: (data: FilmFormData) => void;
+  onSaveAsDraft: (data: FilmFormData) => void;
   initialData?: FilmFormData;
 };
 
 export type FilmFormData = {
   title: string;
   coupleNames: string;
+  weddingDate: string;
   location: string;
   description: string;
   videoUrl: string;
 };
 
-export default function FilmForm({ onClose, onSubmit, initialData }: FilmFormProps) {
+export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData }: FilmFormProps) {
   const [formData, setFormData] = useState<FilmFormData>(initialData || {
     title: '',
     coupleNames: '',
+    weddingDate: '',
     location: '',
     description: '',
     videoUrl: '',
@@ -33,6 +36,11 @@ export default function FilmForm({ onClose, onSubmit, initialData }: FilmFormPro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
+  };
+
+  const handleSaveAsDraft = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onSaveAsDraft(formData);
   };
 
   return (
@@ -61,13 +69,25 @@ export default function FilmForm({ onClose, onSubmit, initialData }: FilmFormPro
           </FormField>
         </div>
 
-        <FormField label="Location">
-          <Input
-            value={formData.location}
-            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-            placeholder="e.g., Mumbai, India"
-          />
-        </FormField>
+        <div className="grid grid-cols-2 gap-6">
+          <FormField label="Wedding Date" required>
+            <Input
+              required
+              type="date"
+              value={formData.weddingDate}
+              onChange={(e) => setFormData({ ...formData, weddingDate: e.target.value })}
+            />
+          </FormField>
+
+          <FormField label="Location" required>
+            <Input
+              required
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              placeholder="e.g., Mumbai, India"
+            />
+          </FormField>
+        </div>
 
         <FormField label="Description">
           <textarea
@@ -93,8 +113,15 @@ export default function FilmForm({ onClose, onSubmit, initialData }: FilmFormPro
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
+          <Button 
+            variant="secondary" 
+            icon={RiDraftLine}
+            onClick={handleSaveAsDraft}
+          >
+            Save as Draft
+          </Button>
           <Button type="submit" icon={RiSaveLine}>
-            Save Film
+            {initialData ? 'Update Film' : 'Publish Film'}
           </Button>
         </div>
       </form>

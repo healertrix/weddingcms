@@ -4,39 +4,55 @@ import { useState } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine } from 'react-icons/ri';
+import { RiSaveLine, RiCloseLine } from 'react-icons/ri';
 import ImageDropzone from '../components/forms/ImageDropzone';
 import FormModal from '../components/forms/FormModal';
+import TextEditor from '../components/forms/TextEditor';
+import { Switch } from '../components/forms/Switch';
 
 type BlogFormProps = {
   onClose: () => void;
   onSubmit: (data: BlogFormData) => void;
+  onSaveAsDraft: (data: BlogFormData) => void;
   initialData?: BlogFormData;
 };
 
-export type BlogFormData = {
+export interface BlogFormData {
   title: string;
-  slug?: string;
-  publishDate: string;
+  slug: string;
   content: string;
-  coverImage?: File[];
+  featuredImageKey: string;
+  galleryImages: Array<{
+    key: string;
+    order_index: number;
+    alt_text?: string;
+  }>;
+  weddingDate: string;
+  location: string;
   isFeaturedHome: boolean;
-  isFeaturedStory: boolean;
-  images?: File[];
-};
+  isFeaturedBlog: boolean;
+}
 
-export default function BlogForm({ onClose, onSubmit, initialData }: BlogFormProps) {
+export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData }: BlogFormProps) {
   const [formData, setFormData] = useState<BlogFormData>(initialData || {
     title: '',
-    publishDate: '',
+    slug: '',
     content: '',
+    featuredImageKey: '',
+    galleryImages: [],
+    weddingDate: '',
+    location: '',
     isFeaturedHome: false,
-    isFeaturedStory: false,
+    isFeaturedBlog: false
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent, asDraft: boolean = false) => {
     e.preventDefault();
-    onSubmit(formData);
+    if (asDraft) {
+      onSaveAsDraft(formData);
+    } else {
+      onSubmit(formData);
+    }
   };
 
   return (
@@ -44,82 +60,123 @@ export default function BlogForm({ onClose, onSubmit, initialData }: BlogFormPro
       title={initialData ? 'Edit Blog Post' : 'Add Blog Post'}
       onClose={onClose}
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-2 gap-6">
-          <FormField label="Title" required>
-            <Input
-              required
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Enter blog title"
-            />
-          </FormField>
+      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
+        <FormField label="Title" required>
+          <Input
+            required
+            value={formData.title}
+            onChange={(e) => {
+              const title = e.target.value;
+              setFormData({
+                ...formData,
+                title,
+                slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+              });
+            }}
+            placeholder="Enter blog post title"
+          />
+        </FormField>
 
-          <FormField label="Publish Date">
-            <Input
-              type="date"
-              value={formData.publishDate}
-              onChange={(e) => setFormData({ ...formData, publishDate: e.target.value })}
-            />
-          </FormField>
-        </div>
-
-        <FormField label="Content" required>
-          <textarea
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 border-gray-300 focus:ring-[#8B4513]"
-            rows={12}
-            value={formData.content}
-            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-            placeholder="Write your blog content here..."
+        <FormField label="Slug" required>
+          <Input
+            required
+            value={formData.slug}
+            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+            placeholder="url-friendly-slug"
           />
         </FormField>
 
         <div className="grid grid-cols-2 gap-6">
-          <FormField label="Cover Image">
-            <ImageDropzone
-              onChange={(files) => setFormData({ ...formData, coverImage: files })}
-              value={formData.coverImage}
+          <FormField label="Wedding Date" required>
+            <Input
+              type="date"
+              required
+              value={formData.weddingDate}
+              onChange={(e) => setFormData({ ...formData, weddingDate: e.target.value })}
             />
           </FormField>
 
-          <FormField label="Gallery Images">
-            <ImageDropzone
-              multiple
-              onChange={(files) => setFormData({ ...formData, images: files })}
-              value={formData.images}
+          <FormField label="Location" required>
+            <Input
+              required
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              placeholder="e.g., Mumbai, India"
             />
           </FormField>
         </div>
 
-        <FormField label="Featured Options">
-          <div className="flex space-x-6">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={formData.isFeaturedHome}
-                onChange={(e) => setFormData({ ...formData, isFeaturedHome: e.target.checked })}
-                className="rounded text-[#8B4513] focus:ring-[#8B4513]"
-              />
-              <span>Featured in Home Page</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={formData.isFeaturedStory}
-                onChange={(e) => setFormData({ ...formData, isFeaturedStory: e.target.checked })}
-                className="rounded text-[#8B4513] focus:ring-[#8B4513]"
-              />
-              <span>Featured in Story</span>
-            </label>
+        <div className="grid grid-cols-2 gap-6 bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium text-gray-900">Featured on Home</h4>
+              <p className="text-sm text-gray-500">Show this post on the home page</p>
+            </div>
+            <Switch
+              checked={formData.isFeaturedHome}
+              onChange={(checked) => setFormData({ ...formData, isFeaturedHome: checked })}
+            />
           </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium text-gray-900">Featured in Blog</h4>
+              <p className="text-sm text-gray-500">Highlight in blog stories</p>
+            </div>
+            <Switch
+              checked={formData.isFeaturedBlog}
+              onChange={(checked) => setFormData({ ...formData, isFeaturedBlog: checked })}
+            />
+          </div>
+        </div>
+
+        <FormField label="Featured Image" required>
+          <ImageDropzone
+            onChange={(files) => setFormData({ ...formData, featuredImageKey: files[0]?.key || '' })}
+            value={formData.featuredImageKey}
+            maxFiles={1}
+            accept="image/*"
+          />
         </FormField>
 
-        <div className="flex justify-end space-x-4 pt-6 border-t">
+        <FormField label="Gallery Images">
+          <ImageDropzone
+            multiple
+            onChange={(files) => {
+              const galleryImages = files.map((file, index) => ({
+                key: file.key,
+                order_index: index,
+                alt_text: `${formData.title} image ${index + 1}`
+              }));
+              setFormData({ ...formData, galleryImages });
+            }}
+            value={formData.galleryImages.map(img => img.key)}
+            accept="image/*"
+          />
+        </FormField>
+
+        <FormField label="Content" required>
+          <TextEditor
+            value={formData.content}
+            onChange={(content) => setFormData({ ...formData, content })}
+          />
+        </FormField>
+
+        <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
+          <Button 
+            variant="secondary" 
+            onClick={(e) => {
+              e.preventDefault();
+              handleSubmit(e, true);
+            }}
+          >
+            Save as Draft
+          </Button>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" icon={RiSaveLine}>
-            Save Blog Post
+            Publish Post
           </Button>
         </div>
       </form>

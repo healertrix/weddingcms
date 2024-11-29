@@ -3,105 +3,108 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { RiImageAddLine, RiCloseLine } from 'react-icons/ri';
+import Image from 'next/image';
 
 interface ImageDropzoneProps {
-  onChange: (files: File[]) => void;
+  onChange: (files: Array<{ key: string }>) => void;
+  value?: string | string[];
   multiple?: boolean;
-  value?: File[];
+  maxFiles?: number;
+  accept?: string;
 }
 
-export default function ImageDropzone({ 
-  onChange, 
-  multiple = false, 
-  value = []
+export default function ImageDropzone({
+  onChange,
+  value = [],
+  multiple = false,
+  maxFiles,
+  accept = 'image/*'
 }: ImageDropzoneProps) {
-  const [preview, setPreview] = useState<string[]>([]);
+  const [files, setFiles] = useState<Array<{ preview: string; key: string }>>([]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (multiple) {
-      const newFiles = [...value, ...acceptedFiles];
-      onChange(newFiles);
-      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
-      setPreview(prev => {
-        // Clean up old previews
-        prev.forEach(url => URL.revokeObjectURL(url));
-        return newPreviews;
-      });
-    } else {
-      const file = acceptedFiles[0];
-      onChange([file]);
-      setPreview(prev => {
-        prev.forEach(url => URL.revokeObjectURL(url));
-        return [URL.createObjectURL(file)];
-      });
-    }
-  }, [multiple, value, onChange]);
+    const newFiles = acceptedFiles.map(file => ({
+      preview: URL.createObjectURL(file),
+      key: `temp-${file.name}-${Date.now()}`
+    }));
 
-  const removeImage = (index: number) => {
-    const newFiles = value.filter((_, i) => i !== index);
-    onChange(newFiles);
-    URL.revokeObjectURL(preview[index]);
-    setPreview(prev => prev.filter((_, i) => i !== index));
-  };
+    if (multiple) {
+      const updatedFiles = [...files, ...newFiles];
+      setFiles(updatedFiles);
+      onChange(updatedFiles);
+    } else {
+      const singleFile = [newFiles[0]];
+      setFiles(singleFile);
+      onChange(singleFile);
+    }
+  }, [files, multiple, onChange]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif']
-    },
+    accept: { 'image/*': [] },
     multiple,
+    maxFiles
   });
+
+  const removeFile = (indexToRemove: number) => {
+    const updatedFiles = files.filter((_, index) => index !== indexToRemove);
+    setFiles(updatedFiles);
+    onChange(updatedFiles);
+  };
 
   return (
     <div className="space-y-4">
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-          ${isDragActive ? 'border-[#8B4513] bg-[#8B4513]/5' : 'border-gray-300 hover:border-[#8B4513]'}`}
+        className={`border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer
+          ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}
+        `}
       >
         <input {...getInputProps()} />
-        <RiImageAddLine className="mx-auto h-12 w-12 text-gray-400" />
-        <p className="mt-2 text-sm text-gray-600">
-          {isDragActive ? 
-            'Drop the images here...' : 
-            'Drag & drop images here, or click to select'
-          }
-        </p>
-        <p className="text-xs text-gray-500 mt-1">
-          {multiple ? 
-            'Upload multiple images' :
-            'Upload one image'
-          }
-        </p>
+        <div className="flex flex-col items-center justify-center text-gray-500">
+          <RiImageAddLine className="w-12 h-12 mb-2" />
+          <p className="text-sm text-center">
+            {isDragActive ? (
+              "Drop your images here"
+            ) : (
+              <>
+                Drop images here or click to browse
+                {multiple && maxFiles && (
+                  <span className="block text-xs text-gray-400 mt-1">
+                    You can add up to {maxFiles} images
+                  </span>
+                )}
+              </>
+            )}
+          </p>
+        </div>
       </div>
 
-      {preview.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
-          {preview.map((url, index) => (
-            <div key={url} className="relative group">
-              <img
-                src={url}
-                alt={`Preview ${index + 1}`}
-                className="w-full h-32 object-cover rounded-lg"
-              />
-              <button
-                type="button"
-                title="Remove image"
-                onClick={() => removeImage(index)}
-                className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <RiCloseLine className="w-4 h-4" />
-              </button>
+      {files.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {files.map((file, index) => (
+            <div key={file.key} className="relative group aspect-square">
+              <div className="w-full h-full relative rounded-lg overflow-hidden">
+                <Image
+                  src={file.preview}
+                  alt={`Preview ${index + 1}`}
+                  fill
+                  className="object-cover"
+                />
+                <div 
+                  className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeFile(index);
+                  }}
+                >
+                  <RiCloseLine 
+                    className="absolute top-2 right-2 w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:scale-110"
+                  />
+                </div>
+              </div>
             </div>
           ))}
-          {multiple && (
-            <div
-              {...getRootProps()}
-              className="w-full h-32 border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer hover:border-[#8B4513]"
-            >
-              <RiImageAddLine className="w-8 h-8 text-gray-400" />
-            </div>
-          )}
         </div>
       )}
     </div>
