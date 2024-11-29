@@ -95,17 +95,19 @@ export default function TestimonialsPage() {
 
   const handleSubmit = async (data: TestimonialFormData, saveAsDraft: boolean = false) => {
     try {
+      const testimonialData = {
+        couple_names: data.coupleNames,
+        wedding_date: data.weddingDate,
+        location: data.location,
+        review: data.review,
+        video_url: data.videoUrl || null,
+        status: saveAsDraft ? 'draft' : 'published'
+      };
+
       if (editingTestimonial) {
         const { error } = await supabase
           .from('testimonials')
-          .update({
-            couple_names: data.coupleNames,
-            wedding_date: data.weddingDate,
-            location: data.location,
-            review: data.review,
-            video_url: data.videoUrl || null,
-            status: saveAsDraft ? 'draft' : 'published'
-          })
+          .update(testimonialData)
           .eq('id', editingTestimonial.id);
 
         if (error) {
@@ -115,14 +117,7 @@ export default function TestimonialsPage() {
       } else {
         const { error } = await supabase
           .from('testimonials')
-          .insert({
-            couple_names: data.coupleNames,
-            wedding_date: data.weddingDate,
-            location: data.location,
-            review: data.review,
-            video_url: data.videoUrl || null,
-            status: saveAsDraft ? 'draft' : 'published'
-          });
+          .insert([testimonialData]);
 
         if (error) {
           console.error('Error creating testimonial:', error.message);

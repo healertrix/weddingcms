@@ -4,7 +4,7 @@ import { useState } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine, RiCloseLine } from 'react-icons/ri';
+import { RiSaveLine } from 'react-icons/ri';
 import ImageDropzone from '../components/forms/ImageDropzone';
 import FormModal from '../components/forms/FormModal';
 
@@ -20,7 +20,7 @@ export type TestimonialFormData = {
   weddingDate: string;
   location: string;
   review: string;
-  photo?: File[];
+  imageKey?: string;
   videoUrl?: string;
 };
 
@@ -30,12 +30,17 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     weddingDate: '',
     location: '',
     review: '',
-    videoUrl: '',
+    imageKey: '',
+    videoUrl: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent, asDraft: boolean = false) => {
     e.preventDefault();
-    onSubmit(formData);
+    if (asDraft) {
+      onSaveAsDraft(formData);
+    } else {
+      onSubmit(formData);
+    }
   };
 
   return (
@@ -43,7 +48,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       title={initialData ? 'Edit Testimonial' : 'Add Testimonial'}
       onClose={onClose}
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
         <div className="grid grid-cols-2 gap-6">
           <FormField label="Couple Names" required>
             <Input
@@ -64,8 +69,9 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
           </FormField>
         </div>
 
-        <FormField label="Location">
+        <FormField label="Location" required>
           <Input
+            required
             value={formData.location}
             onChange={(e) => setFormData({ ...formData, location: e.target.value })}
             placeholder="e.g., Mumbai, India"
@@ -86,8 +92,9 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
         <div className="grid grid-cols-2 gap-6">
           <FormField label="Photo">
             <ImageDropzone
-              onChange={(files) => setFormData({ ...formData, photo: files })}
-              value={formData.photo}
+              onChange={(files) => setFormData({ ...formData, imageKey: files[0]?.key || '' })}
+              value={formData.imageKey}
+              maxFiles={1}
             />
           </FormField>
 
@@ -101,15 +108,21 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
           </FormField>
         </div>
 
-        <div className="mt-6 flex justify-end space-x-3">
+        <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
+          <Button 
+            variant="secondary" 
+            onClick={(e) => {
+              e.preventDefault();
+              handleSubmit(e, true);
+            }}
+          >
+            Save as Draft
+          </Button>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="secondary" onClick={() => onSaveAsDraft(formData)}>
-            Save as Draft
-          </Button>
-          <Button onClick={() => onSubmit(formData)}>
-            Submit for Review
+          <Button type="submit" icon={RiSaveLine}>
+            {initialData ? 'Update Testimonial' : 'Publish Testimonial'}
           </Button>
         </div>
       </form>
