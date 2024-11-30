@@ -10,7 +10,7 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // If there's no session and the user is trying to access a protected route
+  // If there's no session and trying to access protected route
   if (!session && !req.nextUrl.pathname.startsWith('/auth/')) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.pathname = '/auth/login';
@@ -18,31 +18,32 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // If there's a session, check if the user is authorized using a direct query
+  // If there's a session, check if the user is authorized
   if (session && !req.nextUrl.pathname.startsWith('/auth/')) {
-    const { data: user, error } = await supabase
+    const { data: userData, error } = await supabase
       .from('cms_users')
       .select('role')
       .eq('id', session.user.id)
-      .maybeSingle();
+      .single();
 
     // If there's an error or no user found, redirect to login
-    if (error || !user) {
+    if (error || !userData) {
       await supabase.auth.signOut();
       const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = '/auth/login';
       return NextResponse.redirect(redirectUrl);
     }
 
-    // If trying to access /users page, check if user is admin
-    if (req.nextUrl.pathname === '/users' && user.role !== 'admin') {
+    // If trying to access /users page and not an admin, redirect to home
+    if (req.nextUrl.pathname.startsWith('/users') && userData.role !== 'admin') {
+      console.log('Non-admin attempting to access Users page');
       const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = '/';
       return NextResponse.redirect(redirectUrl);
     }
   }
 
-  // If there's a session and the user is trying to access auth pages
+  // If there's a session and trying to access auth pages
   if (session && req.nextUrl.pathname.startsWith('/auth/')) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.pathname = '/';

@@ -10,16 +10,19 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 export default function Sidebar() {
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const supabase = createClientComponentClient();
 
   useEffect(() => {
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
         setIsAuthenticated(true);
+        checkUserRole();
       } else if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
+        setIsAdmin(false);
       }
     });
 
@@ -31,9 +34,26 @@ export default function Sidebar() {
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     setIsAuthenticated(!!session);
+    if (session) {
+      checkUserRole();
+    }
+  };
+
+  const checkUserRole = async () => {
+    const { data: userData } = await supabase
+      .from('cms_users')
+      .select('role')
+      .single();
+    
+    setIsAdmin(userData?.role === 'admin');
   };
 
   if (!isAuthenticated) return null;
+
+  // Filter navigation items based on user role
+  const filteredNavItems = navigationItems.filter(item => 
+    !item.adminOnly || (item.adminOnly && isAdmin)
+  );
 
   return (
     <div className='w-64 bg-white flex flex-col shadow-md h-screen'>
@@ -42,7 +62,7 @@ export default function Sidebar() {
       </div>
       <nav className='flex-1 pt-4'>
         <ul className='space-y-1'>
-          {navigationItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.path}>
