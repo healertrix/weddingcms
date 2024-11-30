@@ -1,14 +1,42 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { navigationItems } from '../config/navigation';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import UserInfo from './UserInfo';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        setIsAuthenticated(true);
+      } else if (event === 'SIGNED_OUT') {
+        setIsAuthenticated(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setIsAuthenticated(!!session);
+  };
+
+  if (!isAuthenticated) return null;
 
   return (
-    <div className='w-64 bg-white flex flex-col shadow-md'>
+    <div className='w-64 bg-white flex flex-col shadow-md h-screen'>
       <div className='p-6 text-2xl font-bold border-b border-gray-100'>
         Wedding Theory
       </div>
@@ -32,15 +60,7 @@ export default function Sidebar() {
           })}
         </ul>
       </nav>
-      <div className='p-4 border-t border-gray-100'>
-        <div className='flex items-center space-x-3'>
-          <div className='w-8 h-8 rounded-full bg-gray-200'></div>
-          <div>
-            <p className='text-sm font-medium'>Admin User</p>
-            <p className='text-xs text-gray-500'>admin@weddingtheory.com</p>
-          </div>
-        </div>
-      </div>
+      <UserInfo />
     </div>
   );
 } 
