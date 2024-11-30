@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { RiCalendarLine, RiVideoLine, RiArticleLine, RiUserSmileLine, RiTimeLine } from 'react-icons/ri';
 import Link from 'next/link';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Database } from './types/supabase';
+// Removed the problematic import
 import Notification from './components/Notification';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -34,7 +34,7 @@ export default function Dashboard() {
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
     fetchCounts();

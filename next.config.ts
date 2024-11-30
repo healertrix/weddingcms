@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    turbo: {
+      rules: {
+        '*.css': ['style-loader', 'css-loader'],
+      },
+    },
+  },
   transpilePackages: ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/pm'],
   webpack: (config) => {
     config.module.rules.push({
