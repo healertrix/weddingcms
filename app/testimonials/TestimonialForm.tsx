@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine, RiPlayLine, RiCloseLine } from 'react-icons/ri';
+import { RiSaveLine, RiPlayLine, RiCloseLine, RiErrorWarningLine } from 'react-icons/ri';
 import ImageDropzone from '../components/forms/ImageDropzone';
 import FormModal from '../components/forms/FormModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -79,9 +79,11 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     videoUrl: ''
   });
   const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState(0);
   const [isValidVideo, setIsValidVideo] = useState(false);
+  const [initialFormData] = useState(formData);
 
   useEffect(() => {
     if (formData.videoUrl) {
@@ -92,12 +94,25 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     }
   }, [formData.videoUrl]);
 
+  const isFormComplete = () => {
+    return (
+      formData.coupleNames.trim() !== '' &&
+      formData.weddingDate.trim() !== '' &&
+      formData.location.trim() !== '' &&
+      formData.review.trim() !== '' &&
+      formData.imageUrl !== '' &&  // Require image for publishing
+      (!formData.videoUrl || isValidVideo) // If video URL exists, it must be valid
+    );
+  };
+
   const handleSubmit = (e: React.FormEvent, asDraft: boolean = false) => {
     e.preventDefault();
     if (asDraft) {
       onSaveAsDraft(formData);
     } else {
-      onSubmit(formData);
+      if (isFormComplete()) {
+        onSubmit(formData);
+      }
     }
   };
 
@@ -167,11 +182,23 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     }
   };
 
+  const hasUnsavedChanges = () => {
+    return JSON.stringify(initialFormData) !== JSON.stringify(formData);
+  };
+
+  const handleClose = () => {
+    if (hasUnsavedChanges()) {
+      setShowCloseConfirm(true);
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <>
       <FormModal
         title={initialData ? 'Edit Testimonial' : 'Add Testimonial'}
-        onClose={onClose}
+        onClose={handleClose}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
@@ -285,14 +312,40 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
                 e.preventDefault();
                 handleSubmit(e, true);
               }}
+              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
             >
               Save as Draft
             </Button>
-            <Button variant="secondary" onClick={onClose}>
+            <Button 
+              variant="secondary" 
+              onClick={handleClose}
+              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+            >
               Cancel
             </Button>
-            <Button type="submit" icon={RiSaveLine}>
-              {initialData ? 'Update Testimonial' : 'Publish Testimonial'}
+            <Button 
+              type="submit" 
+              icon={RiSaveLine}
+              disabled={!isFormComplete()}
+              className={`${
+                isFormComplete()
+                  ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
+                  : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
+              }`}
+              title={
+                !isFormComplete()
+                  ? 'Cannot publish: Missing required fields or image'
+                  : initialData ? 'Update testimonial' : 'Publish testimonial'
+              }
+            >
+              {!isFormComplete() ? (
+                <span className="flex items-center gap-1">
+                  <RiErrorWarningLine className="w-4 h-4" />
+                  Incomplete
+                </span>
+              ) : (
+                initialData ? 'Update Testimonial' : 'Publish Testimonial'
+              )}
             </Button>
           </div>
         </form>
@@ -306,6 +359,23 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
           onConfirm={handleImageDelete}
           onCancel={() => setShowDeleteImageConfirm(false)}
           confirmButtonClassName="bg-red-600 hover:bg-red-700 text-white"
+        />
+      )}
+
+      {showCloseConfirm && (
+        <ConfirmModal
+          title="Unsaved Changes"
+          message="You have unsaved changes. What would you like to do?"
+          confirmLabel="Save Changes"
+          onConfirm={(e) => {
+            setShowCloseConfirm(false);
+            handleSubmit(e as any, true);
+          }}
+          onCancel={() => {
+            setShowCloseConfirm(false);
+            onClose();
+          }}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
         />
       )}
     </>

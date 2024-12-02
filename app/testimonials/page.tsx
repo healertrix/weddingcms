@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
-import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiUserSmileLine, RiVideoLine, RiZoomInLine, RiCloseLine } from 'react-icons/ri';
+import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiUserSmileLine, RiVideoLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine } from 'react-icons/ri';
 import TestimonialForm, { TestimonialFormData } from './TestimonialForm';
 import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
@@ -34,8 +34,11 @@ export default function TestimonialsPage() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deletingTestimonial, setDeletingTestimonial] = useState<string | null>(null);
+  const [deletingTestimonial, setDeletingTestimonial] = useState<Testimonial | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const supabase = createClientComponentClient<Database>();
   const router = useRouter();
@@ -80,33 +83,52 @@ export default function TestimonialsPage() {
     }
   };
 
-  const handleStatusChange = async (testimonialId: string, newStatus: TestimonialStatus) => {
+  const isTestimonialComplete = (testimonial: Testimonial) => {
+    return (
+      testimonial.couple_names?.trim() !== '' &&
+      testimonial.wedding_date?.trim() !== '' &&
+      testimonial.location?.trim() !== '' &&
+      testimonial.review?.trim() !== '' &&
+      testimonial.image_key !== null && 
+      testimonial.image_key !== '' &&
+      (!testimonial.video_url || isValidVideoUrl(testimonial.video_url))
+    );
+  };
+
+  const isValidVideoUrl = (url: string) => {
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const vimeoRegex = /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|))(\d+)(?:[a-zA-Z0-9_\-]+)?/;
+    return youtubeRegex.test(url) || vimeoRegex.test(url);
+  };
+
+  const handleStatusChange = async (id: string, newStatus: TestimonialStatus) => {
+    const testimonial = testimonials.find(t => t.id === id);
+    if (!testimonial) return;
+
+    if (newStatus === 'published' && !isTestimonialComplete(testimonial)) {
+      // Show error notification or alert
+      alert('Cannot publish incomplete testimonial. Please ensure all required fields are filled and image is uploaded.');
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('testimonials')
-        .update({
-          status: newStatus
-        })
-        .eq('id', testimonialId)
-        .select()
-        .single();
+        .update({ status: newStatus })
+        .eq('id', id);
 
-      if (error) {
-        console.error('Error updating testimonial status:', error.message);
-        // You might want to add a notification here to show the error to the user
-        return;
-      }
+      if (error) throw error;
 
-      // Optimistically update the UI
+      // Update local state
       setTestimonials(prevTestimonials =>
-        prevTestimonials.map(t =>
-          t.id === testimonialId ? { ...t, status: newStatus } : t
+        prevTestimonials.map(testimonial =>
+          testimonial.id === id
+            ? { ...testimonial, status: newStatus }
+            : testimonial
         )
       );
-
-      router.refresh();
     } catch (error) {
-      console.error('Error in handleStatusChange:', error);
+      console.error('Error updating testimonial status:', error);
     }
   };
 
@@ -152,62 +174,88 @@ export default function TestimonialsPage() {
     }
   };
 
-  const handleDeleteClick = (id: string) => {
-    setDeletingTestimonial(id);
+  const handleDeleteClick = (testimonial: Testimonial) => {
+    setDeletingTestimonial(testimonial);
     setShowDeleteConfirm(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (deletingTestimonial) {
-      try {
-        // Get the testimonial data first
-        const { data: testimonialData } = await supabase
-          .from('testimonials')
-          .select('image_key')
-          .eq('id', deletingTestimonial)
-          .single();
+    if (!deletingTestimonial) return;
+    setIsDeleting(true);
+    setDeleteProgress(0);
 
-        // If there's an image, delete it from Digital Ocean
-        if (testimonialData?.image_key) {
-          const response = await fetch('/api/upload/delete', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ imageKey: testimonialData.image_key }),
-          });
-
-          if (!response.ok) {
-            console.error('Failed to delete image from storage');
+    try {
+      // Start progress animation
+      const progressInterval = setInterval(() => {
+        setDeleteProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
           }
+          return prev + 10;
+        });
+      }, 100);
+
+      // First, delete the image from DigitalOcean if it exists
+      if (deletingTestimonial.image_key) {
+        setDeleteProgress(30);
+        const imageResponse = await fetch('/api/upload/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageKey: deletingTestimonial.image_key }),
+        });
+
+        if (!imageResponse.ok) {
+          throw new Error('Failed to delete image from storage');
         }
+        setDeleteProgress(60);
+      }
 
-        // Delete the testimonial from the database
-        const { error } = await supabase
-          .from('testimonials')
-          .delete()
-          .eq('id', deletingTestimonial);
+      // Then delete the testimonial record from the database
+      const { error: deleteError } = await supabase
+        .from('testimonials')
+        .delete()
+        .eq('id', deletingTestimonial.id);
 
-        if (error) {
-          console.error('Error deleting testimonial:', error);
-          return;
-        }
+      if (deleteError) {
+        throw deleteError;
+      }
 
-        fetchTestimonials();
+      setDeleteProgress(100);
+
+      // Update local state after a brief delay to show completion
+      setTimeout(() => {
+        setTestimonials(prevTestimonials => 
+          prevTestimonials.filter(t => t.id !== deletingTestimonial.id)
+        );
         setShowDeleteConfirm(false);
         setDeletingTestimonial(null);
-        router.refresh();
-      } catch (error) {
-        console.error('Error in handleDeleteConfirm:', error);
-      }
+        setDeleteProgress(0);
+      }, 500);
+
+      clearInterval(progressInterval);
+    } catch (error) {
+      console.error('Error deleting testimonial:', error);
+      alert('Failed to delete testimonial. Please try again.');
+      setDeleteProgress(0);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const filteredTestimonials = testimonials.filter(testimonial => 
-    testimonial.couple_names.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    testimonial.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    testimonial.review.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filterTestimonials = (testimonials: Testimonial[]) => {
+    return testimonials.filter(testimonial => {
+      const matchesSearch = testimonial.couple_names.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           testimonial.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           testimonial.review.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || 
+                           (statusFilter === 'published' && testimonial.status === 'published') ||
+                           (statusFilter === 'draft' && testimonial.status === 'draft');
+      return matchesSearch && matchesStatus;
+    });
+  };
 
   return (
     <div className='min-h-screen max-h-screen flex flex-col p-8 overflow-hidden'>
@@ -223,18 +271,30 @@ export default function TestimonialsPage() {
         />
 
         <div className="mt-4 relative">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search testimonials..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513] border-gray-200"
-            />
-            <RiSearchLine 
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={20}
-            />
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Search testimonials..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513] border-gray-200"
+              />
+              <RiSearchLine 
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={18}
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'draft' | 'published')}
+              className="px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513] border-gray-200 bg-white min-w-[130px]"
+              aria-label="Filter testimonials by status"
+            >
+              <option value="all">All Status</option>
+              <option value="published">Published</option>
+              <option value="draft">Drafts</option>
+            </select>
           </div>
         </div>
       </div>
@@ -242,7 +302,7 @@ export default function TestimonialsPage() {
       <div className='flex-1 bg-white rounded-lg shadow-sm mt-6 overflow-hidden flex flex-col min-h-0'>
         <div className='flex-1 overflow-y-auto'>
           <div className='grid grid-cols-1 gap-6 p-6'>
-            {filteredTestimonials.map((testimonial) => (
+            {filterTestimonials(testimonials).map((testimonial) => (
               <div 
                 key={testimonial.id} 
                 className='flex flex-col md:flex-row gap-6 p-6 bg-white border rounded-xl hover:shadow-md transition-all duration-200'
@@ -303,9 +363,26 @@ export default function TestimonialsPage() {
                       <Button
                         variant="secondary"
                         onClick={() => handleStatusChange(testimonial.id, 'published')}
-                        className="bg-green-50 text-green-600 hover:bg-green-100"
+                        className={`${
+                          isTestimonialComplete(testimonial)
+                            ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                            : 'bg-red-50 text-red-600 border-red-100 opacity-80'
+                        }`}
+                        disabled={!isTestimonialComplete(testimonial)}
+                        title={
+                          !isTestimonialComplete(testimonial)
+                            ? 'Cannot publish: Missing required fields or image'
+                            : 'Publish testimonial'
+                        }
                       >
-                        Publish
+                        {!isTestimonialComplete(testimonial) ? (
+                          <span className="flex items-center gap-1">
+                            <RiErrorWarningLine className="w-4 h-4" />
+                            Incomplete
+                          </span>
+                        ) : (
+                          'Publish'
+                        )}
                       </Button>
                     ) : (
                       <Button
@@ -328,18 +405,18 @@ export default function TestimonialsPage() {
                     </Button>
                     <Button
                       variant="secondary"
-                      icon={RiDeleteBin6Line}
-                      onClick={() => handleDeleteClick(testimonial.id)}
-                      className="bg-red-50 text-red-600 hover:bg-red-100"
+                      onClick={() => handleDeleteClick(testimonial)}
+                      className="text-red-600 hover:bg-red-50"
+                      title="Delete testimonial"
                     >
-                      Delete
+                      <RiDeleteBin6Line />
                     </Button>
                   </div>
                 </div>
               </div>
             ))}
 
-            {filteredTestimonials.length === 0 && (
+            {filterTestimonials(testimonials).length === 0 && (
               <div className="text-center py-12">
                 <RiUserSmileLine className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                 <p className="text-lg text-gray-500">No testimonials found</p>
@@ -370,16 +447,47 @@ export default function TestimonialsPage() {
         />
       )}
 
-      {showDeleteConfirm && (
+      {showDeleteConfirm && deletingTestimonial && (
         <ConfirmModal
           title="Delete Testimonial"
-          message="Are you sure you want to delete this testimonial? This action cannot be undone."
-          confirmLabel="Delete"
+          message={
+            <div className="space-y-4">
+              <div className="space-y-4">
+                <p>Are you sure you want to delete this testimonial?</p>
+                <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                  <div className="font-medium text-red-800">This will permanently delete:</div>
+                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                    <li>The testimonial record</li>
+                    <li>Associated image</li>
+                  </ul>
+                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                </div>
+              </div>
+              {isDeleting && (
+                <div className="mt-4">
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                      style={{ width: `${deleteProgress}%` }}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2 text-center">
+                    Deleting testimonial... {deleteProgress}%
+                  </div>
+                </div>
+              )}
+            </div>
+          }
+          confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
           onConfirm={handleDeleteConfirm}
           onCancel={() => {
-            setShowDeleteConfirm(false);
-            setDeletingTestimonial(null);
+            if (!isDeleting) {
+              setShowDeleteConfirm(false);
+              setDeletingTestimonial(null);
+            }
           }}
+          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={isDeleting}
         />
       )}
 
