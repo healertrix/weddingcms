@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine } from 'react-icons/ri';
+import { RiSaveLine, RiPlayLine, RiCloseLine } from 'react-icons/ri';
 import ImageDropzone from '../components/forms/ImageDropzone';
 import FormModal from '../components/forms/FormModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -26,6 +26,48 @@ export type TestimonialFormData = {
   videoUrl?: string;
 };
 
+function getVideoId(url: string) {
+  try {
+    // YouTube URL patterns
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const youtubeMatch = url.match(youtubeRegex);
+    if (youtubeMatch) return { type: 'youtube', id: youtubeMatch[1] };
+
+    // Vimeo URL patterns
+    const vimeoRegex = /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|))(\d+)(?:[a-zA-Z0-9_\-]+)?/;
+    const vimeoMatch = url.match(vimeoRegex);
+    if (vimeoMatch) return { type: 'vimeo', id: vimeoMatch[1] };
+
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function VideoPreview({ url }: { url: string }) {
+  const videoInfo = getVideoId(url);
+  
+  if (!videoInfo) return null;
+
+  let embedUrl = '';
+  if (videoInfo.type === 'youtube') {
+    embedUrl = `https://www.youtube.com/embed/${videoInfo.id}`;
+  } else if (videoInfo.type === 'vimeo') {
+    embedUrl = `https://player.vimeo.com/video/${videoInfo.id}`;
+  }
+
+  return (
+    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100">
+      <iframe
+        src={embedUrl}
+        className="absolute inset-0 w-full h-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    </div>
+  );
+}
+
 export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, initialData }: TestimonialFormProps) {
   const [formData, setFormData] = useState<TestimonialFormData>(initialData || {
     coupleNames: '',
@@ -39,6 +81,16 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState(0);
+  const [isValidVideo, setIsValidVideo] = useState(false);
+
+  useEffect(() => {
+    if (formData.videoUrl) {
+      const videoInfo = getVideoId(formData.videoUrl);
+      setIsValidVideo(!!videoInfo);
+    } else {
+      setIsValidVideo(false);
+    }
+  }, [formData.videoUrl]);
 
   const handleSubmit = (e: React.FormEvent, asDraft: boolean = false) => {
     e.preventDefault();
@@ -163,37 +215,67 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
           </FormField>
 
           <div className="grid grid-cols-2 gap-6">
-            <FormField label="Photo">
-              <ImageDropzone
-                onChange={handleImageUpload}
-                value={formData.imageUrl}
-                maxFiles={1}
-                onDelete={handleDeleteClick}
-                disabled={isDeleting}
-              />
-              {isDeleting && (
-                <div className="mt-2">
-                  <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-red-600 transition-all duration-300 ease-out"
-                      style={{ width: `${deleteProgress}%` }}
-                    />
+            <div>
+              <FormField label="Photo">
+                <ImageDropzone
+                  onChange={handleImageUpload}
+                  value={formData.imageUrl}
+                  maxFiles={1}
+                  onDelete={handleDeleteClick}
+                  disabled={isDeleting}
+                />
+                {isDeleting && (
+                  <div className="mt-2">
+                    <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-red-600 transition-all duration-300 ease-out"
+                        style={{ width: `${deleteProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Deleting image... {deleteProgress}%
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Deleting image... {deleteProgress}%
-                  </p>
-                </div>
-              )}
-            </FormField>
+                )}
+              </FormField>
+            </div>
 
-            <FormField label="Video URL">
-              <Input
-                type="url"
-                value={formData.videoUrl}
-                onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-                placeholder="Enter video testimonial URL"
-              />
-            </FormField>
+            <div>
+              <FormField label="Video URL">
+                {!isValidVideo ? (
+                  <div>
+                    <Input
+                      type="url"
+                      value={formData.videoUrl}
+                      onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                      placeholder="Enter YouTube or Vimeo URL"
+                      className={formData.videoUrl && !isValidVideo ? 'border-red-500' : ''}
+                    />
+                    {formData.videoUrl && !isValidVideo && (
+                      <p className="text-sm text-red-500 mt-1">
+                        Please enter a valid YouTube or Vimeo URL
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="relative rounded-lg overflow-hidden">
+                      <VideoPreview url={formData.videoUrl} />
+                      <div className="absolute top-3 right-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, videoUrl: '' })}
+                          className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 hover:text-red-700 shadow-lg transition-all hover:scale-110 border border-red-100 group"
+                          title="Change video"
+                        >
+                          <RiCloseLine size={24} className="group-hover:rotate-90 transition-transform duration-200" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </FormField>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
