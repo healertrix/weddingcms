@@ -101,7 +101,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       formData.location.trim() !== '' &&
       formData.review.trim() !== '' &&
       formData.imageUrl !== '' &&  // Require image for publishing
-      (!formData.videoUrl || isValidVideo) // If video URL exists, it must be valid
+      formData.videoUrl && isValidVideo // Video URL is required and must be valid
     );
   };
 
@@ -268,11 +268,12 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
             </div>
 
             <div>
-              <FormField label="Video URL">
+              <FormField label="Video URL" required>
                 {!isValidVideo ? (
                   <div>
                     <Input
                       type="url"
+                      required
                       value={formData.videoUrl}
                       onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
                       placeholder="Enter YouTube or Vimeo URL"
@@ -376,6 +377,8 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
             onClose();
           }}
           confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          showCloseButton={true}
+          onCloseButtonClick={() => setShowCloseConfirm(false)}
         />
       )}
     </>

@@ -1,52 +1,80 @@
 import Button from './Button';
+import { RiCloseLine } from 'react-icons/ri';
 
 interface ConfirmModalProps {
   title: string;
   message: string | React.ReactNode;
-  onConfirm: () => void;
+  confirmLabel: string;
+  onConfirm: (e: React.MouseEvent) => void;
   onCancel: () => void;
-  confirmLabel?: string;
   confirmButtonClassName?: string;
   disabled?: boolean;
+  showCloseButton?: boolean;
+  onCloseButtonClick?: () => void;
 }
 
-export default function ConfirmModal({ 
-  title, 
-  message, 
-  onConfirm, 
+export default function ConfirmModal({
+  title,
+  message,
+  confirmLabel,
+  onConfirm,
   onCancel,
-  confirmLabel = 'Confirm',
-  confirmButtonClassName = 'bg-red-600 hover:bg-red-700 text-white',
-  disabled = false
+  confirmButtonClassName = '',
+  disabled = false,
+  showCloseButton = false,
+  onCloseButtonClick
 }: ConfirmModalProps) {
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={onCancel}
-    >
-      <div 
-        className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">{title}</h2>
-        <div className="text-gray-600 mb-6 whitespace-pre-wrap">
-          {message}
-        </div>
-        <div className="flex justify-end gap-4">
-          <Button 
-            variant="secondary" 
-            onClick={onCancel}
-            disabled={disabled}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={onConfirm}
-            className={confirmButtonClassName}
-            disabled={disabled}
-          >
-            {confirmLabel}
-          </Button>
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onCancel} />
+        
+        <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+          {showCloseButton && (
+            <button
+              onClick={onCloseButtonClick}
+              className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-500 transition-colors"
+            >
+              <RiCloseLine className="w-5 h-5" />
+            </button>
+          )}
+          
+          <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+            <div className="sm:flex sm:items-start">
+              <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                <h3 className="text-lg font-semibold leading-6 text-gray-900 mb-4">
+                  {title}
+                </h3>
+                <div className="mt-2">
+                  {typeof message === 'string' ? (
+                    <p className="text-sm text-gray-500 whitespace-pre-line">{message}</p>
+                  ) : (
+                    message
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-3">
+            <button
+              type="button"
+              className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold shadow-sm sm:w-auto ${
+                confirmButtonClassName || 'bg-red-600 text-white hover:bg-red-500'
+              } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={onConfirm}
+              disabled={disabled}
+            >
+              {confirmLabel}
+            </button>
+            <button
+              type="button"
+              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -22,6 +22,7 @@ type Testimonial = {
   video_url: string | null;
   image_key: string | null;
   status: TestimonialStatus;
+  missingFields?: string[];
 };
 
 const formatReview = (review: string) => {
@@ -34,6 +35,8 @@ export default function TestimonialsPage() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showMissingFieldsModal, setShowMissingFieldsModal] = useState(false);
+  const [selectedTestimonial, setSelectedTestimonial] = useState<Testimonial | null>(null);
   const [deletingTestimonial, setDeletingTestimonial] = useState<Testimonial | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState(0);
@@ -84,15 +87,17 @@ export default function TestimonialsPage() {
   };
 
   const isTestimonialComplete = (testimonial: Testimonial) => {
-    return (
-      testimonial.couple_names?.trim() !== '' &&
-      testimonial.wedding_date?.trim() !== '' &&
-      testimonial.location?.trim() !== '' &&
-      testimonial.review?.trim() !== '' &&
-      testimonial.image_key !== null && 
-      testimonial.image_key !== '' &&
-      (!testimonial.video_url || isValidVideoUrl(testimonial.video_url))
-    );
+    const missingFields = [];
+    
+    if (!testimonial.couple_names?.trim()) missingFields.push('Couple Names');
+    if (!testimonial.wedding_date?.trim()) missingFields.push('Wedding Date');
+    if (!testimonial.location?.trim()) missingFields.push('Location');
+    if (!testimonial.review?.trim()) missingFields.push('Review');
+    if (!testimonial.image_key) missingFields.push('Photo');
+    if (!testimonial.video_url || !isValidVideoUrl(testimonial.video_url)) missingFields.push('Video');
+
+    testimonial.missingFields = missingFields;
+    return missingFields.length === 0;
   };
 
   const isValidVideoUrl = (url: string) => {
@@ -106,8 +111,7 @@ export default function TestimonialsPage() {
     if (!testimonial) return;
 
     if (newStatus === 'published' && !isTestimonialComplete(testimonial)) {
-      // Show error notification or alert
-      alert('Cannot publish incomplete testimonial. Please ensure all required fields are filled and image is uploaded.');
+      alert(`Cannot publish incomplete testimonial. Missing fields:\n${testimonial.missingFields?.join('\n')}`);
       return;
     }
 
@@ -257,6 +261,11 @@ export default function TestimonialsPage() {
     });
   };
 
+  const handleIncompleteClick = (testimonial: Testimonial) => {
+    setSelectedTestimonial(testimonial);
+    setShowMissingFieldsModal(true);
+  };
+
   return (
     <div className='min-h-screen max-h-screen flex flex-col p-8 overflow-hidden'>
       <div className="flex-none">
@@ -362,16 +371,19 @@ export default function TestimonialsPage() {
                     {testimonial.status === 'draft' ? (
                       <Button
                         variant="secondary"
-                        onClick={() => handleStatusChange(testimonial.id, 'published')}
+                        onClick={() => isTestimonialComplete(testimonial) 
+                          ? handleStatusChange(testimonial.id, 'published')
+                          : handleIncompleteClick(testimonial)
+                        }
                         className={`${
                           isTestimonialComplete(testimonial)
                             ? 'bg-green-50 text-green-600 hover:bg-green-100'
                             : 'bg-red-50 text-red-600 border-red-100 opacity-80'
                         }`}
-                        disabled={!isTestimonialComplete(testimonial)}
+                        disabled={false}
                         title={
                           !isTestimonialComplete(testimonial)
-                            ? 'Cannot publish: Missing required fields or image'
+                            ? 'Click to see missing fields'
                             : 'Publish testimonial'
                         }
                       >
@@ -488,6 +500,37 @@ export default function TestimonialsPage() {
           }}
           confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
           disabled={isDeleting}
+        />
+      )}
+
+      {showMissingFieldsModal && selectedTestimonial && (
+        <ConfirmModal
+          title="Incomplete Testimonial"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">The following fields are required before publishing:</p>
+              <ul className="list-disc list-inside space-y-2 text-red-600">
+                {selectedTestimonial.missingFields?.map((field, index) => (
+                  <li key={index} className="flex items-center gap-2">
+                    <RiErrorWarningLine className="flex-shrink-0" />
+                    {field}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-sm text-gray-500 mt-4">Click Edit to complete these fields.</p>
+            </div>
+          }
+          confirmLabel="Edit Testimonial"
+          onConfirm={() => {
+            setShowMissingFieldsModal(false);
+            setEditingTestimonial(selectedTestimonial);
+            setShowForm(true);
+          }}
+          onCancel={() => {
+            setShowMissingFieldsModal(false);
+            setSelectedTestimonial(null);
+          }}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
         />
       )}
 
