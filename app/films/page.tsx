@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
-import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiVideoLine } from 'react-icons/ri';
+import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiVideoLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine } from 'react-icons/ri';
 import FilmForm, { FilmFormData } from './FilmForm';
+import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '../types/supabase';
@@ -37,8 +38,11 @@ export default function FilmsPage() {
   const [films, setFilms] = useState<Film[]>([]);
   const [editingFilm, setEditingFilm] = useState<Film | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deletingFilm, setDeletingFilm] = useState<string | null>(null);
+  const [deletingFilm, setDeletingFilm] = useState<Film | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
   const supabase = createClientComponentClient<Database>();
   const router = useRouter();
 
@@ -164,7 +168,7 @@ export default function FilmsPage() {
       const { error } = await supabase
         .from('films')
         .delete()
-        .eq('id', deletingFilm);
+        .eq('id', deletingFilm.id);
 
       if (error) {
         console.error('Error deleting film:', error);
@@ -198,18 +202,22 @@ export default function FilmsPage() {
     );
   };
 
-  const filteredFilms = films.filter(film => 
-    film.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    film.couple_names.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    film.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    film.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredFilms = films.filter(film => {
+    const matchesSearch = 
+      film.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      film.couple_names.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      film.location.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || film.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className='min-h-screen max-h-screen flex flex-col p-8 overflow-hidden'>
       <div className="flex-none">
         <PageHeader
-          title="Wedding Films"
+          title="Films"
           description="Manage your wedding films and videos"
           action={
             <Button icon={RiAddLine} onClick={() => setShowForm(true)}>
@@ -219,60 +227,91 @@ export default function FilmsPage() {
         />
 
         <div className="mt-4 relative">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search films..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <RiSearchLine 
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={20}
-            />
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Search films..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513] border-gray-200"
+              />
+              <RiSearchLine 
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={18}
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'draft' | 'published')}
+              className="px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513] border-gray-200 bg-white min-w-[130px]"
+              aria-label="Filter films by status"
+            >
+              <option value="all">All Status</option>
+              <option value="published">Published</option>
+              <option value="draft">Drafts</option>
+            </select>
           </div>
         </div>
       </div>
 
-      <div className='flex-1 bg-white rounded-lg shadow mt-4 overflow-hidden flex flex-col min-h-0'>
+      <div className='flex-1 bg-white rounded-lg shadow-sm mt-6 overflow-hidden flex flex-col min-h-0'>
         <div className='flex-1 overflow-y-auto'>
-          <div className='grid grid-cols-1 gap-4 p-6'>
+          <div className='grid grid-cols-1 gap-6 p-6'>
             {filteredFilms.map((film) => (
-              <div key={film.id} className='flex flex-col p-6 border rounded-lg hover:bg-gray-50 transition-all duration-200 group'>
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className='text-xl font-medium text-gray-900 truncate'>{film.title}</h3>
-                      <span className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-medium ${
-                        film.status === 'published' 
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {film.status === 'published' ? 'Published' : 'Draft'}
-                      </span>
-                    </div>
-                    
-                    <div className='flex items-center text-sm text-gray-500 space-x-4 mb-3 flex-wrap'>
-                      <span className="flex items-center flex-shrink-0">
-                        <RiCalendarLine className="mr-1" />
-                        {new Date(film.wedding_date).toLocaleDateString()}
-                      </span>
-                      <span className="flex items-center flex-shrink-0">
-                        <RiMapPinLine className="mr-1" />
-                        <span className="truncate max-w-[200px]">{film.location}</span>
-                      </span>
-                      <span className="flex items-center flex-shrink-0">
-                        <RiVideoLine className="mr-1" />
-                        <span className="truncate max-w-[200px]">{film.couple_names}</span>
-                      </span>
+              <div 
+                key={film.id} 
+                className='flex flex-col md:flex-row gap-6 p-6 bg-white border rounded-xl hover:shadow-md transition-all duration-200'
+              >
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className='text-xl font-medium text-gray-900'>{film.title}</h3>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          film.status === 'published' 
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {film.status === 'published' ? 'Published' : 'Draft'}
+                        </span>
+                      </div>
+                      
+                      <div className='flex items-center flex-wrap gap-4 text-sm text-gray-500 mb-4'>
+                        <span className="flex items-center">
+                          <RiCalendarLine className="mr-1.5" />
+                          {formatDate(film.wedding_date)}
+                        </span>
+                        <span className="flex items-center">
+                          <RiMapPinLine className="mr-1.5" />
+                          {film.location}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                    {getStatusActions(film)}
-                    <Button 
-                      variant='secondary' 
+                  <p className="text-gray-600 flex-grow mb-4 line-clamp-3">{film.description}</p>
+
+                  <div className="flex items-center gap-3 pt-4 border-t">
+                    {film.status === 'draft' ? (
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleStatusChange(film.id, 'published')}
+                        className="bg-green-50 text-green-600 hover:bg-green-100"
+                      >
+                        Publish
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleStatusChange(film.id, 'draft')}
+                        className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+                      >
+                        Unpublish
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
                       icon={RiEditLine}
                       onClick={() => {
                         setEditingFilm(film);
@@ -281,49 +320,24 @@ export default function FilmsPage() {
                     >
                       Edit
                     </Button>
-                    <Button 
-                      variant='secondary' 
-                      icon={RiDeleteBin6Line}
-                      onClick={() => handleDeleteClick(film.id)}
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleDeleteClick(film)}
                       className="text-red-600 hover:bg-red-50"
+                      title="Delete film"
                     >
-                      Delete
+                      <RiDeleteBin6Line />
                     </Button>
                   </div>
                 </div>
-
-                <div className="flex gap-6 mt-4">
-                  {film.image_key && (
-                    <div className="flex-shrink-0">
-                      <img 
-                        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/film-images/${film.image_key}`}
-                        alt={film.title}
-                        className="w-48 h-32 object-cover rounded-lg"
-                      />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="prose prose-sm max-w-none text-gray-600">
-                      <p className="line-clamp-3 break-words">
-                        {formatDescription(film.description)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {film.is_featured_home && (
-                  <div className="flex gap-2 mt-4 flex-wrap">
-                    <span className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-full flex-shrink-0">
-                      Featured on Home
-                    </span>
-                  </div>
-                )}
               </div>
             ))}
+
             {filteredFilms.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <RiVideoLine className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-lg">No films found matching your search.</p>
+              <div className="text-center py-12">
+                <RiVideoLine className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                <p className="text-lg text-gray-500">No films found</p>
+                <p className="text-sm text-gray-400 mt-1">Try adjusting your search or add a new film</p>
               </div>
             )}
           </div>
@@ -349,16 +363,50 @@ export default function FilmsPage() {
         />
       )}
 
-      <ConfirmModal
-        isOpen={showDeleteConfirm}
-        onClose={() => {
-          setShowDeleteConfirm(false);
-          setDeletingFilm(null);
-        }}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Film"
-        message="Are you sure you want to delete this film? This action cannot be undone."
-      />
+      {showDeleteConfirm && deletingFilm && (
+        <ConfirmModal
+          title="Delete Film"
+          message={
+            <div className="space-y-4">
+              <div className="space-y-4">
+                <p>Are you sure you want to delete this film?</p>
+                <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                  <div className="font-medium text-red-800">This will permanently delete:</div>
+                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                    <li>The film details</li>
+                    <li>Thumbnail image</li>
+                    <li>Video link</li>
+                  </ul>
+                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                </div>
+              </div>
+              {isDeleting && (
+                <div className="mt-4">
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                      style={{ width: `${deleteProgress}%` }}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2 text-center">
+                    Deleting film... {deleteProgress}%
+                  </div>
+                </div>
+              )}
+            </div>
+          }
+          confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => {
+            if (!isDeleting) {
+              setShowDeleteConfirm(false);
+              setDeletingFilm(null);
+            }
+          }}
+          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={isDeleting}
+        />
+      )}
     </div>
   );
 } 

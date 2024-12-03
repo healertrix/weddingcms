@@ -100,18 +100,22 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       formData.weddingDate.trim() !== '' &&
       formData.location.trim() !== '' &&
       formData.review.trim() !== '' &&
-      formData.imageUrl !== '' &&  // Require image for publishing
-      formData.videoUrl && isValidVideo // Video URL is required and must be valid
+      formData.videoUrl?.trim() !== ''
     );
   };
 
   const handleSubmit = (e: React.FormEvent, asDraft: boolean = false) => {
     e.preventDefault();
+    const submissionData = {
+      ...formData,
+      weddingDate: formData.weddingDate || null
+    };
+
     if (asDraft) {
-      onSaveAsDraft(formData);
+      onSaveAsDraft(submissionData);
     } else {
       if (isFormComplete()) {
-        onSubmit(formData);
+        onSubmit(submissionData);
       }
     }
   };
@@ -211,12 +215,15 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
               />
             </FormField>
 
-            <FormField label="Wedding Date" required>
+            <FormField label="Wedding Date">
               <Input
                 type="date"
-                required
-                value={formData.weddingDate}
-                onChange={(e) => setFormData({ ...formData, weddingDate: e.target.value })}
+                value={formData.weddingDate || ''}
+                min="2000-01-01"
+                max="2100-12-31"
+                onChange={(e) => {
+                  setFormData({ ...formData, weddingDate: e.target.value });
+                }}
               />
             </FormField>
           </div>

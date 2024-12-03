@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
-import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiLinkM, RiArticleLine } from 'react-icons/ri';
+import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiArticleLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine } from 'react-icons/ri';
 import BlogForm, { BlogFormData } from './BlogForm';
+import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '../types/supabase';
@@ -18,22 +19,11 @@ type BlogPost = {
   slug: string;
   content: string;
   featured_image_key: string | null;
+  wedding_date: string | null;
+  location: string | null;
+  is_featured_home: boolean;
+  is_featured_blog: boolean;
   status: BlogStatus;
-  published_at: string | null;
-  created_at: string;
-  updated_at: string;
-  wedding_date?: string;
-  location?: string;
-  is_featured_home?: boolean;
-  is_featured_blog?: boolean;
-};
-
-// Update the formatContentPreview function
-const formatContentPreview = (content: string) => {
-  // First remove HTML tags
-  const strippedContent = content.replace(/<[^>]+>/g, ' ').trim();
-  // Then truncate to a reasonable length
-  return strippedContent.length > 150 ? `${strippedContent.substring(0, 150)}...` : strippedContent;
 };
 
 export default function BlogPage() {
@@ -41,8 +31,12 @@ export default function BlogPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deletingPost, setDeletingPost] = useState<string | null>(null);
+  const [deletingPost, setDeletingPost] = useState<BlogPost | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const supabase = createClientComponentClient<Database>();
   const router = useRouter();
 
@@ -57,67 +51,105 @@ export default function BlogPage() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching posts:', error.message);
-        return;
-      }
-
-      if (data) {
-        setPosts(data as BlogPost[]);
-      }
+      if (error) throw error;
+      setPosts(data as BlogPost[]);
     } catch (error) {
-      console.error('Error in fetchPosts:', error);
+      console.error('Error fetching posts:', error);
     }
   };
 
-  const handleStatusChange = async (postId: string, newStatus: BlogStatus) => {
+  const handleStatusChange = async (id: string, newStatus: BlogStatus) => {
     try {
       const { error } = await supabase
         .from('blog_posts')
-        .update({ 
-          status: newStatus,
-          published_at: newStatus === 'published' ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', postId);
+        .update({ status: newStatus })
+        .eq('id', id);
 
-      if (error) {
-        console.error('Error updating post status:', error.message);
-        return;
-      }
+      if (error) throw error;
 
       setPosts(prevPosts =>
-        prevPosts.map(p =>
-          p.id === postId ? {
-            ...p,
-            status: newStatus,
-            published_at: newStatus === 'published' ? new Date().toISOString() : null,
-            updated_at: new Date().toISOString()
-          } : p
+        prevPosts.map(post =>
+          post.id === id ? { ...post, status: newStatus } : post
         )
       );
-
-      router.refresh();
     } catch (error) {
-      console.error('Error in handleStatusChange:', error);
+      console.error('Error updating post status:', error);
+    }
+  };
+
+  const handleDeleteClick = (post: BlogPost) => {
+    setDeletingPost(post);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingPost) return;
+    setIsDeleting(true);
+    setDeleteProgress(0);
+
+    try {
+      const progressInterval = setInterval(() => {
+        setDeleteProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
+      if (deletingPost.featured_image_key) {
+        setDeleteProgress(30);
+        const imageResponse = await fetch('/api/upload/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageKey: deletingPost.featured_image_key }),
+        });
+
+        if (!imageResponse.ok) {
+          throw new Error('Failed to delete image from storage');
+        }
+        setDeleteProgress(60);
+      }
+
+      const { error: deleteError } = await supabase
+        .from('blog_posts')
+        .delete()
+        .eq('id', deletingPost.id);
+
+      if (deleteError) throw deleteError;
+
+      setDeleteProgress(100);
+
+      setTimeout(() => {
+        setPosts(prevPosts => prevPosts.filter(p => p.id !== deletingPost.id));
+        setShowDeleteConfirm(false);
+        setDeletingPost(null);
+        setDeleteProgress(0);
+      }, 500);
+
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      setDeleteProgress(0);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleSubmit = async (data: BlogFormData, saveAsDraft: boolean = false) => {
     try {
-      const now = new Date().toISOString();
       const postData = {
         title: data.title,
         slug: data.slug,
         content: data.content,
         featured_image_key: data.featuredImageKey || null,
-        wedding_date: data.weddingDate,
-        location: data.location,
+        wedding_date: data.weddingDate || null,
+        location: data.location || null,
         is_featured_home: data.isFeaturedHome,
         is_featured_blog: data.isFeaturedBlog,
-        status: saveAsDraft ? 'draft' : 'published',
-        published_at: saveAsDraft ? null : now,
-        updated_at: now
+        status: saveAsDraft ? 'draft' : 'published'
       };
 
       if (editingPost) {
@@ -130,10 +162,7 @@ export default function BlogPage() {
       } else {
         const { error } = await supabase
           .from('blog_posts')
-          .insert({
-            ...postData,
-            created_at: now
-          });
+          .insert([postData]);
 
         if (error) throw error;
       }
@@ -147,128 +176,136 @@ export default function BlogPage() {
     }
   };
 
-  const handleDeleteClick = (id: string) => {
-    setDeletingPost(id);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (deletingPost) {
-      const { error } = await supabase
-        .from('blog_posts')
-        .delete()
-        .eq('id', deletingPost);
-
-      if (error) {
-        console.error('Error deleting post:', error);
-        return;
-      }
-
-      await fetchPosts();
-      setShowDeleteConfirm(false);
-      setDeletingPost(null);
-      router.refresh();
-    }
-  };
-
-  const getStatusActions = (post: BlogPost) => {
-    return post.status === 'draft' ? (
-      <Button
-        variant="secondary"
-        onClick={() => handleStatusChange(post.id, 'published')}
-        className="bg-green-50 text-green-600 hover:bg-green-100"
-      >
-        Publish
-      </Button>
-    ) : (
-      <Button
-        variant="secondary"
-        onClick={() => handleStatusChange(post.id, 'draft')}
-        className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-      >
-        Unpublish
-      </Button>
-    );
-  };
-
-  const filteredPosts = posts.filter(post => 
-    post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    post.slug.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPosts = posts.filter(post => {
+    const matchesSearch = 
+      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (post.location?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+    
+    const matchesStatus = statusFilter === 'all' || post.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className='min-h-screen max-h-screen flex flex-col p-8 overflow-hidden'>
       <div className="flex-none">
         <PageHeader
           title="Blog Posts"
-          description="Manage your blog posts"
+          description="Manage your blog posts and stories"
           action={
             <Button icon={RiAddLine} onClick={() => setShowForm(true)}>
-              Add Post
+              Add Blog Post
             </Button>
           }
         />
 
         <div className="mt-4 relative">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search posts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <RiSearchLine 
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={20}
-            />
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Search blog posts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513] border-gray-200"
+              />
+              <RiSearchLine 
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={18}
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'draft' | 'published')}
+              className="px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513] border-gray-200 bg-white min-w-[130px]"
+              aria-label="Filter blog posts by status"
+            >
+              <option value="all">All Status</option>
+              <option value="published">Published</option>
+              <option value="draft">Drafts</option>
+            </select>
           </div>
         </div>
       </div>
 
-      <div className='flex-1 bg-white rounded-lg shadow mt-4 overflow-hidden flex flex-col min-h-0'>
+      <div className='flex-1 bg-white rounded-lg shadow-sm mt-6 overflow-hidden flex flex-col min-h-0'>
         <div className='flex-1 overflow-y-auto'>
-          <div className='grid grid-cols-1 gap-4 p-6'>
+          <div className='grid grid-cols-1 gap-6 p-6'>
             {filteredPosts.map((post) => (
-              <div key={post.id} className='flex flex-col p-6 border rounded-lg hover:bg-gray-50 transition-all duration-200 group'>
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className='text-xl font-medium text-gray-900 truncate'>{post.title}</h3>
-                      <span className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-medium ${
-                        post.status === 'published' 
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {post.status === 'published' ? 'Published' : 'Draft'}
-                      </span>
+              <div 
+                key={post.id} 
+                className='flex flex-col md:flex-row gap-6 p-6 bg-white border rounded-xl hover:shadow-md transition-all duration-200'
+              >
+                {post.featured_image_key && (
+                  <div className="flex-shrink-0 w-full md:w-64 h-64 md:h-48 relative rounded-lg overflow-hidden group">
+                    <img
+                      src={post.featured_image_key}
+                      alt={post.title}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <div 
+                      className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center cursor-pointer"
+                      onClick={() => setPreviewImage(post.featured_image_key)}
+                    >
+                      <RiZoomInLine className="text-white opacity-0 group-hover:opacity-100 w-8 h-8 transform scale-0 group-hover:scale-100 transition-all duration-300" />
                     </div>
-                    
-                    <div className='flex items-center text-sm text-gray-500 space-x-4 mb-3 flex-wrap'>
-                      {post.wedding_date && (
-                        <span className="flex items-center flex-shrink-0">
-                          <RiCalendarLine className="mr-1" />
-                          {new Date(post.wedding_date).toLocaleDateString()}
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className='text-xl font-medium text-gray-900'>{post.title}</h3>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          post.status === 'published' 
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {post.status === 'published' ? 'Published' : 'Draft'}
                         </span>
-                      )}
-                      {post.location && (
-                        <span className="flex items-center flex-shrink-0">
-                          <RiMapPinLine className="mr-1" />
-                          <span className="truncate max-w-[200px]">{post.location}</span>
-                        </span>
-                      )}
-                      <span className="flex items-center flex-shrink-0">
-                        <RiLinkM className="mr-1" />
-                        <span className="truncate max-w-[200px]">{post.slug}</span>
-                      </span>
+                      </div>
+                      
+                      <div className='flex items-center flex-wrap gap-4 text-sm text-gray-500 mb-4'>
+                        {post.wedding_date && (
+                          <span className="flex items-center">
+                            <RiCalendarLine className="mr-1.5" />
+                            {formatDate(post.wedding_date)}
+                          </span>
+                        )}
+                        {post.location && (
+                          <span className="flex items-center">
+                            <RiMapPinLine className="mr-1.5" />
+                            {post.location}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                    {getStatusActions(post)}
-                    <Button 
-                      variant='secondary' 
+                  <p className="text-gray-600 flex-grow mb-4 line-clamp-3">{post.content}</p>
+
+                  <div className="flex items-center gap-3 pt-4 border-t">
+                    {post.status === 'draft' ? (
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleStatusChange(post.id, 'published')}
+                        className="bg-green-50 text-green-600 hover:bg-green-100"
+                      >
+                        Publish
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleStatusChange(post.id, 'draft')}
+                        className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+                      >
+                        Unpublish
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
                       icon={RiEditLine}
                       onClick={() => {
                         setEditingPost(post);
@@ -277,61 +314,59 @@ export default function BlogPage() {
                     >
                       Edit
                     </Button>
-                    <Button 
-                      variant='secondary' 
-                      icon={RiDeleteBin6Line}
-                      onClick={() => handleDeleteClick(post.id)}
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleDeleteClick(post)}
                       className="text-red-600 hover:bg-red-50"
+                      title="Delete blog post"
                     >
-                      Delete
+                      <RiDeleteBin6Line />
                     </Button>
                   </div>
                 </div>
-
-                <div className="flex gap-6 mt-4">
-                  {post.featured_image_key && (
-                    <div className="flex-shrink-0">
-                      <img 
-                        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/blog-images/${post.featured_image_key}`}
-                        alt={post.title}
-                        className="w-48 h-32 object-cover rounded-lg"
-                      />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="prose prose-sm max-w-none text-gray-600">
-                      <p className="line-clamp-3 break-words">
-                        {formatContentPreview(post.content)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {(post.is_featured_home || post.is_featured_blog) && (
-                  <div className="flex gap-2 mt-4 flex-wrap">
-                    {post.is_featured_home && (
-                      <span className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-full flex-shrink-0">
-                        Featured on Home
-                      </span>
-                    )}
-                    {post.is_featured_blog && (
-                      <span className="text-xs px-2 py-1 bg-purple-50 text-purple-600 rounded-full flex-shrink-0">
-                        Featured in Blog
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
             ))}
+
             {filteredPosts.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <RiArticleLine className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-lg">No posts found matching your search.</p>
+              <div className="text-center py-12">
+                <RiArticleLine className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                <p className="text-lg text-gray-500">No blog posts found</p>
+                <p className="text-sm text-gray-400 mt-1">Try adjusting your search or add a new blog post</p>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
+            aria-label="Close preview"
+          >
+            <RiCloseLine className="w-8 h-8" />
+          </button>
+          <div 
+            className="w-full h-full flex items-center justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewImage}
+              alt="Full size preview"
+              className="w-full h-full object-contain"
+              style={{
+                maxWidth: '100vw',
+                maxHeight: '100vh',
+                objectFit: 'contain'
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <BlogForm 
@@ -355,16 +390,49 @@ export default function BlogPage() {
         />
       )}
 
-      <ConfirmModal
-        isOpen={showDeleteConfirm}
-        onClose={() => {
-          setShowDeleteConfirm(false);
-          setDeletingPost(null);
-        }}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Post"
-        message="Are you sure you want to delete this post? This action cannot be undone."
-      />
+      {showDeleteConfirm && deletingPost && (
+        <ConfirmModal
+          title="Delete Blog Post"
+          message={
+            <div className="space-y-4">
+              <div className="space-y-4">
+                <p>Are you sure you want to delete this blog post?</p>
+                <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                  <div className="font-medium text-red-800">This will permanently delete:</div>
+                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                    <li>The blog post content</li>
+                    <li>Associated images</li>
+                  </ul>
+                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                </div>
+              </div>
+              {isDeleting && (
+                <div className="mt-4">
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                      style={{ width: `${deleteProgress}%` }}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2 text-center">
+                    Deleting blog post... {deleteProgress}%
+                  </div>
+                </div>
+              )}
+            </div>
+          }
+          confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => {
+            if (!isDeleting) {
+              setShowDeleteConfirm(false);
+              setDeletingPost(null);
+            }
+          }}
+          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={isDeleting}
+        />
+      )}
     </div>
   );
 } 
