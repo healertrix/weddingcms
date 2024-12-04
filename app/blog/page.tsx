@@ -359,38 +359,32 @@ export default function BlogPage() {
                           {post.status === 'published' ? 'Published' : 'Draft'}
                         </span>
                         {post.status === 'published' && (
-                          <>
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleFeaturedToggle(post.id, 'home', post.is_featured_home)}
-                              className={`p-1.5 rounded-full transition-colors ${
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${
                                 post.is_featured_home
                                   ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
                                   : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
                               }`}
                               title={`${post.is_featured_home ? 'Remove from' : 'Feature on'} home page`}
                             >
-                              {post.is_featured_home ? (
-                                <RiHome2Fill className="w-4 h-4" />
-                              ) : (
-                                <RiHome2Line className="w-4 h-4" />
-                              )}
+                              {post.is_featured_home ? <RiHome2Fill /> : <RiHome2Line />}
+                              <span className="text-sm">Home</span>
                             </button>
                             <button
                               onClick={() => handleFeaturedToggle(post.id, 'blog', post.is_featured_blog)}
-                              className={`p-1.5 rounded-full transition-colors ${
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${
                                 post.is_featured_blog
                                   ? 'bg-purple-50 text-purple-600 hover:bg-purple-100'
                                   : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
                               }`}
                               title={`${post.is_featured_blog ? 'Remove from' : 'Feature in'} blog highlights`}
                             >
-                              {post.is_featured_blog ? (
-                                <RiStarFill className="w-4 h-4" />
-                              ) : (
-                                <RiStarLine className="w-4 h-4" />
-                              )}
+                              {post.is_featured_blog ? <RiStarFill /> : <RiStarLine />}
+                              <span className="text-sm">Featured</span>
                             </button>
-                          </>
+                          </div>
                         )}
                       </div>
                       
@@ -405,18 +399,6 @@ export default function BlogPage() {
                           <span className="flex items-center">
                             <RiMapPinLine className="mr-1.5" />
                             {post.location}
-                          </span>
-                        )}
-                        {post.is_featured_home && (
-                          <span className="flex items-center text-gray-500 bg-indigo-50/50 px-2 py-0.5 rounded-md">
-                            <RiHome2Fill className="mr-1.5 text-indigo-500" />
-                            Home
-                          </span>
-                        )}
-                        {post.is_featured_blog && (
-                          <span className="flex items-center text-gray-500 bg-purple-50/50 px-2 py-0.5 rounded-md">
-                            <RiStarFill className="mr-1.5 text-purple-500" />
-                            Featured
                           </span>
                         )}
                       </div>
