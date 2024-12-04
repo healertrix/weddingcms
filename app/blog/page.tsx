@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
-import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiArticleLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine } from 'react-icons/ri';
+import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiArticleLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine, RiStarLine, RiStarFill, RiHome2Line, RiHome2Fill } from 'react-icons/ri';
 import BlogForm, { BlogFormData } from './BlogForm';
 import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
@@ -24,6 +24,43 @@ type BlogPost = {
   is_featured_home: boolean;
   is_featured_blog: boolean;
   status: BlogStatus;
+  missingFields?: string[];
+};
+
+const formatContent = (content: string) => {
+  // Replace italic tags with a special marker
+  const withMarkers = content
+    .replace(/<i>/g, '{{i}}')
+    .replace(/<\/i>/g, '{{/i}}')
+    .replace(/<em>/g, '{{i}}')
+    .replace(/<\/em>/g, '{{/i}}');
+
+  // Remove other HTML tags but keep our markers
+  const strippedContent = withMarkers
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim()
+    .replace(/\s+/g, ' '); // Normalize spaces
+
+  // Truncate if needed (around one line of text)
+  let finalContent = strippedContent;
+  if (strippedContent.length > 100) {
+    // Find the last space before 100 characters
+    const lastSpace = strippedContent.substring(0, 100).lastIndexOf(' ');
+    finalContent = strippedContent.substring(0, lastSpace);
+    // Only add ellipsis if there's more content
+    if (strippedContent.length > lastSpace) {
+      finalContent += ' ...';
+    }
+  }
+
+  // Restore italic tags
+  return finalContent
+    .replace(/{{i}}/g, '<i>')
+    .replace(/{{\/i}}/g, '</i>');
 };
 
 export default function BlogPage() {
@@ -39,6 +76,8 @@ export default function BlogPage() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const supabase = createClientComponentClient<Database>();
   const router = useRouter();
+  const [showMissingFieldsModal, setShowMissingFieldsModal] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
 
   useEffect(() => {
     fetchPosts();
@@ -58,7 +97,30 @@ export default function BlogPage() {
     }
   };
 
+  const isPostComplete = (post: BlogPost) => {
+    const missingFields = [];
+    
+    if (!post.title?.trim()) missingFields.push('Title');
+    if (!post.slug?.trim()) missingFields.push('Slug');
+    if (!post.content?.trim()) missingFields.push('Content');
+    if (!post.wedding_date?.trim()) missingFields.push('Wedding Date');
+    if (!post.location?.trim()) missingFields.push('Location');
+    if (!post.featured_image_key) missingFields.push('Featured Image');
+
+    post.missingFields = missingFields;
+    return missingFields.length === 0;
+  };
+
   const handleStatusChange = async (id: string, newStatus: BlogStatus) => {
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+
+    if (newStatus === 'published' && !isPostComplete(post)) {
+      setSelectedPost(post);
+      setShowMissingFieldsModal(true);
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('blog_posts')
@@ -176,6 +238,37 @@ export default function BlogPage() {
     }
   };
 
+  const handleIncompleteClick = (post: BlogPost) => {
+    setSelectedPost(post);
+    setShowMissingFieldsModal(true);
+  };
+
+  const handleFeaturedToggle = async (id: string, type: 'home' | 'blog', currentValue: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('blog_posts')
+        .update({
+          [type === 'home' ? 'is_featured_home' : 'is_featured_blog']: !currentValue
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post.id === id
+            ? {
+                ...post,
+                [type === 'home' ? 'is_featured_home' : 'is_featured_blog']: !currentValue
+              }
+            : post
+        )
+      );
+    } catch (error) {
+      console.error('Error updating featured status:', error);
+    }
+  };
+
   const filteredPosts = posts.filter(post => {
     const matchesSearch = 
       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -265,6 +358,40 @@ export default function BlogPage() {
                         }`}>
                           {post.status === 'published' ? 'Published' : 'Draft'}
                         </span>
+                        {post.status === 'published' && (
+                          <>
+                            <button
+                              onClick={() => handleFeaturedToggle(post.id, 'home', post.is_featured_home)}
+                              className={`p-1.5 rounded-full transition-colors ${
+                                post.is_featured_home
+                                  ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                              }`}
+                              title={`${post.is_featured_home ? 'Remove from' : 'Feature on'} home page`}
+                            >
+                              {post.is_featured_home ? (
+                                <RiHome2Fill className="w-4 h-4" />
+                              ) : (
+                                <RiHome2Line className="w-4 h-4" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleFeaturedToggle(post.id, 'blog', post.is_featured_blog)}
+                              className={`p-1.5 rounded-full transition-colors ${
+                                post.is_featured_blog
+                                  ? 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                              }`}
+                              title={`${post.is_featured_blog ? 'Remove from' : 'Feature in'} blog highlights`}
+                            >
+                              {post.is_featured_blog ? (
+                                <RiStarFill className="w-4 h-4" />
+                              ) : (
+                                <RiStarLine className="w-4 h-4" />
+                              )}
+                            </button>
+                          </>
+                        )}
                       </div>
                       
                       <div className='flex items-center flex-wrap gap-4 text-sm text-gray-500 mb-4'>
@@ -280,20 +407,55 @@ export default function BlogPage() {
                             {post.location}
                           </span>
                         )}
+                        {post.is_featured_home && (
+                          <span className="flex items-center text-gray-500 bg-indigo-50/50 px-2 py-0.5 rounded-md">
+                            <RiHome2Fill className="mr-1.5 text-indigo-500" />
+                            Home
+                          </span>
+                        )}
+                        {post.is_featured_blog && (
+                          <span className="flex items-center text-gray-500 bg-purple-50/50 px-2 py-0.5 rounded-md">
+                            <RiStarFill className="mr-1.5 text-purple-500" />
+                            Featured
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <p className="text-gray-600 flex-grow mb-4 line-clamp-3">{post.content}</p>
+                  <p 
+                    className="text-gray-600 flex-grow mb-4 line-clamp-2"
+                    dangerouslySetInnerHTML={{ __html: formatContent(post.content) }}
+                  />
 
                   <div className="flex items-center gap-3 pt-4 border-t">
                     {post.status === 'draft' ? (
                       <Button
                         variant="secondary"
-                        onClick={() => handleStatusChange(post.id, 'published')}
-                        className="bg-green-50 text-green-600 hover:bg-green-100"
+                        onClick={() => isPostComplete(post) 
+                          ? handleStatusChange(post.id, 'published')
+                          : handleIncompleteClick(post)
+                        }
+                        className={`${
+                          isPostComplete(post)
+                            ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                            : 'bg-red-50 text-red-600 border-red-100 opacity-80'
+                        }`}
+                        disabled={false}
+                        title={
+                          !isPostComplete(post)
+                            ? 'Click to see missing fields'
+                            : 'Publish post'
+                        }
                       >
-                        Publish
+                        {!isPostComplete(post) ? (
+                          <span className="flex items-center gap-1">
+                            <RiErrorWarningLine className="w-4 h-4" />
+                            Incomplete
+                          </span>
+                        ) : (
+                          'Publish'
+                        )}
                       </Button>
                     ) : (
                       <Button
@@ -431,6 +593,37 @@ export default function BlogPage() {
           }}
           confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
           disabled={isDeleting}
+        />
+      )}
+
+      {showMissingFieldsModal && selectedPost && (
+        <ConfirmModal
+          title="Incomplete Blog Post"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">The following fields are required before publishing:</p>
+              <ul className="list-disc list-inside space-y-2 text-red-600">
+                {selectedPost.missingFields?.map((field, index) => (
+                  <li key={index} className="flex items-center gap-2">
+                    <RiErrorWarningLine className="flex-shrink-0" />
+                    {field}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-sm text-gray-500 mt-4">Click Edit to complete these fields.</p>
+            </div>
+          }
+          confirmLabel="Edit Post"
+          onConfirm={() => {
+            setShowMissingFieldsModal(false);
+            setEditingPost(selectedPost);
+            setShowForm(true);
+          }}
+          onCancel={() => {
+            setShowMissingFieldsModal(false);
+            setSelectedPost(null);
+          }}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
         />
       )}
     </div>

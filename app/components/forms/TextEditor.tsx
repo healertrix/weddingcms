@@ -2,7 +2,7 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { RiBold, RiItalic, RiListOrdered, RiListUnordered, RiH1, RiH2, RiH3 } from 'react-icons/ri';
+import { RiBold, RiItalic, RiListOrdered, RiListUnordered } from 'react-icons/ri';
 
 interface TextEditorProps {
   value: string;
@@ -22,7 +22,7 @@ const MenuBar = ({ editor }: any) => {
   return (
     <div className="border-b p-2 flex gap-2 flex-wrap sticky top-0 bg-white z-10">
       <button
-        type="button" // Specify button type
+        type="button"
         onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleBold().run())}
         className={`p-2 rounded hover:bg-gray-100 ${editor.isActive('bold') ? 'bg-gray-100' : ''}`}
         title="Bold"
@@ -36,30 +36,6 @@ const MenuBar = ({ editor }: any) => {
         title="Italic"
       >
         <RiItalic />
-      </button>
-      <button
-        type="button"
-        onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleHeading({ level: 1 }).run())}
-        className={`p-2 rounded hover:bg-gray-100 ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-100' : ''}`}
-        title="Heading 1"
-      >
-        <RiH1 />
-      </button>
-      <button
-        type="button"
-        onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleHeading({ level: 2 }).run())}
-        className={`p-2 rounded hover:bg-gray-100 ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-100' : ''}`}
-        title="Heading 2"
-      >
-        <RiH2 />
-      </button>
-      <button
-        type="button"
-        onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleHeading({ level: 3 }).run())}
-        className={`p-2 rounded hover:bg-gray-100 ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-100' : ''}`}
-        title="Heading 3"
-      >
-        <RiH3 />
       </button>
       <button
         type="button"
@@ -83,7 +59,9 @@ const MenuBar = ({ editor }: any) => {
 
 export default function TextEditor({ value, onChange }: TextEditorProps) {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit.configure({
+      heading: false, // Disable heading functionality
+    })],
     content: value,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
