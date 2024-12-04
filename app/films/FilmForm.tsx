@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine, RiDraftLine, RiCloseLine, RiErrorWarningLine } from 'react-icons/ri';
+import { RiSaveLine, RiDraftLine, RiCloseLine, RiErrorWarningLine, RiInformationLine } from 'react-icons/ri';
 import FormModal from '../components/forms/FormModal';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -77,6 +77,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
   });
   const [isValidVideo, setIsValidVideo] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showCoupleNameWarning, setShowCoupleNameWarning] = useState(false);
 
   useEffect(() => {
     if (formData.videoUrl) {
@@ -95,7 +96,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const handleSaveAsDraft = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!formData.coupleNames.trim()) {
-      alert('Couple names are required even for drafts.');
+      setShowCoupleNameWarning(true);
       return;
     }
     onSaveAsDraft(formData);
@@ -293,6 +294,28 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
           confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
           showCloseButton={true}
           onCloseButtonClick={() => setShowCloseConfirm(false)}
+        />
+      )}
+
+      {showCoupleNameWarning && (
+        <ConfirmModal
+          title="Couple Names Required"
+          message={
+            <div className="space-y-4">
+              <p className="text-[#4A4A4A]">Couple names are required even when saving as a draft.</p>
+              <div className="bg-[#FEF3C7] p-4 rounded-lg flex items-start gap-3">
+                <RiInformationLine className="text-[#92400E] w-5 h-5 mt-0.5" />
+                <p className="text-[#92400E]">Please enter the couple names before saving.</p>
+              </div>
+            </div>
+          }
+          confirmLabel="OK"
+          onConfirm={() => setShowCoupleNameWarning(false)}
+          showCancelButton={true}
+          cancelLabel="Cancel"
+          confirmButtonClassName="bg-[#92400E] hover:bg-[#78340F] text-white"
+          showCloseButton={false}
+          onCancel={() => setShowCoupleNameWarning(false)}
         />
       )}
     </FormModal>
