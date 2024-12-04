@@ -80,6 +80,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   });
   const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showCoupleNamesWarning, setShowCoupleNamesWarning] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState(0);
   const [isValidVideo, setIsValidVideo] = useState(false);
@@ -104,19 +105,23 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     );
   };
 
-  const handleSubmit = (e: React.FormEvent, asDraft: boolean = false) => {
+  const handleSubmit = async (e: React.FormEvent, saveAsDraft: boolean) => {
     e.preventDefault();
+
+    if (saveAsDraft && !formData.coupleNames.trim()) {
+      setShowCoupleNamesWarning(true);
+      return;
+    }
+
     const submissionData = {
       ...formData,
-      weddingDate: formData.weddingDate || null
+      weddingDate: formData.weddingDate.trim() || null
     };
 
-    if (asDraft) {
+    if (saveAsDraft) {
       onSaveAsDraft(submissionData);
     } else {
-      if (isFormComplete()) {
-        onSubmit(submissionData);
-      }
+      onSubmit(submissionData);
     }
   };
 
@@ -207,12 +212,15 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
             <FormField label="Couple Names" required>
-              <Input
-                required
-                value={formData.coupleNames}
-                onChange={(e) => setFormData({ ...formData, coupleNames: e.target.value })}
-                placeholder="e.g., Sarah & John"
-              />
+              <div>
+                <Input
+                  required
+                  value={formData.coupleNames}
+                  onChange={(e) => setFormData({ ...formData, coupleNames: e.target.value })}
+                  placeholder="e.g., Sarah & John"
+                />
+                <p className="text-sm text-gray-500 mt-1">Required even for drafts</p>
+              </div>
             </FormField>
 
             <FormField label="Wedding Date">
@@ -386,6 +394,28 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
           confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
           showCloseButton={true}
           onCloseButtonClick={() => setShowCloseConfirm(false)}
+        />
+      )}
+
+      {showCoupleNamesWarning && (
+        <ConfirmModal
+          title="Couple Names Required"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">Couple names are required even when saving as a draft.</p>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <RiErrorWarningLine className="flex-shrink-0" />
+                  <p>Please enter the couple names before saving.</p>
+                </div>
+              </div>
+            </div>
+          }
+          confirmLabel="OK"
+          onConfirm={() => setShowCoupleNamesWarning(false)}
+          onCancel={() => setShowCoupleNamesWarning(false)}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          showCancelButton={false}
         />
       )}
     </>
