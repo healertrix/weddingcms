@@ -43,6 +43,7 @@ export default function TestimonialsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewVideo, setPreviewVideo] = useState<string | null>(null);
   const supabase = createClientComponentClient<Database>();
   const router = useRouter();
 
@@ -356,10 +357,13 @@ export default function TestimonialsPage() {
                           {testimonial.location}
                         </span>
                         {testimonial.video_url && (
-                          <span className="flex items-center text-blue-600">
+                          <button
+                            onClick={() => setPreviewVideo(testimonial.video_url)}
+                            className="flex items-center text-blue-600 hover:text-blue-700 transition-colors"
+                          >
                             <RiVideoLine className="mr-1.5" />
-                            Video Available
-                          </span>
+                            Watch Video
+                          </button>
                         )}
                       </div>
                     </div>
@@ -563,6 +567,71 @@ export default function TestimonialsPage() {
           </div>
         </div>
       )}
+
+      {previewVideo && (
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-90"
+          onClick={() => setPreviewVideo(null)}
+        >
+          <button
+            onClick={() => setPreviewVideo(null)}
+            className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
+            aria-label="Close preview"
+          >
+            <RiCloseLine className="w-8 h-8" />
+          </button>
+          <div 
+            className="w-full h-full flex items-center justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full max-w-4xl aspect-video">
+              <VideoPreview url={previewVideo} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function VideoPreview({ url }: { url: string }) {
+  const videoInfo = getVideoId(url);
+  
+  if (!videoInfo) return null;
+
+  let embedUrl = '';
+  if (videoInfo.type === 'youtube') {
+    embedUrl = `https://www.youtube.com/embed/${videoInfo.id}`;
+  } else if (videoInfo.type === 'vimeo') {
+    embedUrl = `https://player.vimeo.com/video/${videoInfo.id}`;
+  }
+
+  return (
+    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100">
+      <iframe
+        src={embedUrl}
+        className="absolute inset-0 w-full h-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    </div>
+  );
+}
+
+function getVideoId(url: string) {
+  try {
+    // YouTube URL patterns
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const youtubeMatch = url.match(youtubeRegex);
+    if (youtubeMatch) return { type: 'youtube', id: youtubeMatch[1] };
+
+    // Vimeo URL patterns
+    const vimeoRegex = /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|))(\d+)(?:[a-zA-Z0-9_\-]+)?/;
+    const vimeoMatch = url.match(vimeoRegex);
+    if (vimeoMatch) return { type: 'vimeo', id: vimeoMatch[1] };
+
+    return null;
+  } catch (error) {
+    return null;
+  }
 } 
