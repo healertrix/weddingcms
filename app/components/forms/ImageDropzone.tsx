@@ -61,6 +61,7 @@ interface ImageDropzoneProps {
   maxFiles?: number;
   onDelete?: () => void;
   disabled?: boolean;
+  folder?: string;
 }
 
 export default function ImageDropzone({ 
@@ -68,7 +69,8 @@ export default function ImageDropzone({
   value, 
   maxFiles = 1,
   onDelete,
-  disabled = false
+  disabled = false,
+  folder = 'general'
 }: ImageDropzoneProps) {
   const [uploadStatus, setUploadStatus] = useState<{
     status: 'idle' | 'uploading' | 'success' | 'error';
@@ -93,6 +95,7 @@ export default function ImageDropzone({
     try {
       const formData = new FormData();
       formData.append('file', acceptedFiles[0]);
+      formData.append('folder', folder);
 
       // Start progress simulation
       const progressInterval = setInterval(() => {
@@ -133,7 +136,7 @@ export default function ImageDropzone({
       });
       setUploadProgress(0);
     }
-  }, [onChange, maxFiles]);
+  }, [onChange, maxFiles, folder]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

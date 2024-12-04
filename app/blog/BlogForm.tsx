@@ -77,25 +77,39 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const handleSubmit = async (e: React.FormEvent, saveAsDraft: boolean) => {
     e.preventDefault();
 
+    // First check if we can save as draft
     if (saveAsDraft && !formData.title.trim()) {
       setShowTitleWarning(true);
       return;
     }
 
+    // Then check if we can publish
     if (!saveAsDraft && !isFormComplete()) {
       setShowIncompleteWarning(true);
       return;
     }
 
-    const submissionData = {
-      ...formData,
-      weddingDate: formData.weddingDate.trim() || formData.weddingDate
-    };
+    try {
+      const postData = {
+        title: formData.title,
+        slug: formData.slug,
+        content: formData.content,
+        featured_image_key: formData.featuredImageKey || null,
+        featured_image_url: formData.featuredImageUrl || null,
+        wedding_date: formData.weddingDate || null,
+        location: formData.location || null,
+        is_featured_home: formData.isFeaturedHome,
+        is_featured_blog: formData.isFeaturedBlog,
+        status: saveAsDraft ? 'draft' : 'published'
+      };
 
-    if (saveAsDraft) {
-      onSaveAsDraft(submissionData);
-    } else {
-      onSubmit(submissionData);
+      if (saveAsDraft) {
+        onSaveAsDraft(formData); // Use formData instead of postData
+      } else {
+        onSubmit(formData); // Use formData instead of postData
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
     }
   };
 
@@ -103,7 +117,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     if (files.length > 0) {
       setFormData({
         ...formData,
-        featuredImageKey: files[0].key,
+        featuredImageKey: files[0].url,
         featuredImageUrl: files[0].url
       });
     }
@@ -339,11 +353,49 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
       {showDeleteImageConfirm && (
         <ConfirmModal
           title="⚠️ Delete Image Permanently"
-          message={`WARNING: You are about to permanently delete this image!\n\nThis action:\n• Cannot be undone\n• Will permanently remove the image\n• Will delete the image from the blog post\n\nAre you absolutely sure you want to proceed?`}
-          confirmLabel="Yes, Delete Image Permanently"
-          onConfirm={handleImageDelete}
-          onCancel={() => setShowDeleteImageConfirm(false)}
-          confirmButtonClassName="bg-red-600 hover:bg-red-700 text-white"
+          message={
+            <div className="space-y-4">
+              <div className="space-y-4">
+                <p>Are you sure you want to delete this image?</p>
+                <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                  <div className="font-medium text-red-800">This will permanently delete:</div>
+                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                    <li>The featured image</li>
+                    <li>The image from storage</li>
+                  </ul>
+                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                </div>
+              </div>
+              {isDeleting && (
+                <div className="mt-4">
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                      style={{ width: `${deleteProgress}%` }}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2 text-center">
+                    Deleting image... {deleteProgress}%
+                  </div>
+                </div>
+              )}
+            </div>
+          }
+          confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
+          onConfirm={(e) => {
+            if (!isDeleting) {
+              handleImageDelete();
+            }
+          }}
+          onCancel={() => {
+            setShowDeleteImageConfirm(false);
+          }}
+          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
+            isDeleting ? 'opacity-50 cursor-not-allowed bg-red-400' : ''
+          }`}
+          disabled={isDeleting}
+          showCancelButton={!isDeleting}
+          allowBackgroundCancel={!isDeleting}
         />
       )}
 
