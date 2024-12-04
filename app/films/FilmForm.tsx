@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine, RiDraftLine, RiCloseLine } from 'react-icons/ri';
+import { RiSaveLine, RiDraftLine, RiCloseLine, RiErrorWarningLine } from 'react-icons/ri';
 import FormModal from '../components/forms/FormModal';
+import ConfirmModal from '../components/ConfirmModal';
 
 type FilmFormProps = {
   onClose: () => void;
@@ -75,6 +76,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
     videoUrl: '',
   });
   const [isValidVideo, setIsValidVideo] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   useEffect(() => {
     if (formData.videoUrl) {
@@ -92,31 +94,76 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
   const handleSaveAsDraft = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (!formData.coupleNames.trim()) {
+      alert('Couple names are required even for drafts.');
+      return;
+    }
     onSaveAsDraft(formData);
+  };
+
+  const isFormComplete = () => {
+    return (
+      formData.title.trim() !== '' &&
+      formData.coupleNames.trim() !== '' &&
+      formData.weddingDate.trim() !== '' &&
+      formData.location.trim() !== '' &&
+      formData.description.trim() !== '' &&
+      formData.videoUrl.trim() !== '' &&
+      isValidVideo
+    );
+  };
+
+  const hasUnsavedChanges = () => {
+    if (!initialData) {
+      return formData.title !== '' ||
+        formData.coupleNames !== '' ||
+        formData.weddingDate !== '' ||
+        formData.location !== '' ||
+        formData.description !== '' ||
+        formData.videoUrl !== '';
+    }
+
+    return formData.title !== initialData.title ||
+      formData.coupleNames !== initialData.coupleNames ||
+      formData.weddingDate !== initialData.weddingDate ||
+      formData.location !== initialData.location ||
+      formData.description !== initialData.description ||
+      formData.videoUrl !== initialData.videoUrl;
+  };
+
+  const handleClose = () => {
+    if (hasUnsavedChanges()) {
+      setShowCloseConfirm(true);
+    } else {
+      onClose();
+    }
   };
 
   return (
     <FormModal
       title={initialData ? 'Edit Film' : 'Add Film'}
-      onClose={onClose}
+      onClose={handleClose}
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 gap-6">
+          <FormField label="Couple Names" required>
+            <div>
+              <Input
+                required
+                value={formData.coupleNames}
+                onChange={(e) => setFormData({ ...formData, coupleNames: e.target.value })}
+                placeholder="e.g., Sarah & John"
+              />
+              <p className="text-sm text-gray-500 mt-1">Required even for drafts</p>
+            </div>
+          </FormField>
+
           <FormField label="Title" required>
             <Input
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Enter film title"
-            />
-          </FormField>
-
-          <FormField label="Couple Names" required>
-            <Input
-              required
-              value={formData.coupleNames}
-              onChange={(e) => setFormData({ ...formData, coupleNames: e.target.value })}
-              placeholder="e.g., Sarah & John"
             />
           </FormField>
         </div>
@@ -141,10 +188,11 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
           </FormField>
         </div>
 
-        <FormField label="Description">
+        <FormField label="Description" required>
           <textarea
             className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 border-gray-300 focus:ring-[#8B4513]"
             rows={8}
+            required
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             placeholder="Write film description here..."
@@ -188,21 +236,65 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
         </FormField>
 
         <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
           <Button 
             variant="secondary" 
-            icon={RiDraftLine}
             onClick={handleSaveAsDraft}
+            className="bg-gray-50 text-gray-600 hover:bg-gray-100"
           >
             Save as Draft
           </Button>
-          <Button type="submit" icon={RiSaveLine}>
-            {initialData ? 'Update Film' : 'Publish Film'}
+          <Button 
+            variant="secondary" 
+            onClick={handleClose}
+            className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            icon={RiSaveLine}
+            disabled={!isFormComplete()}
+            className={`${
+              isFormComplete()
+                ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
+                : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
+            }`}
+            title={
+              !isFormComplete()
+                ? 'Cannot publish: Missing required fields'
+                : initialData ? 'Update film' : 'Publish film'
+            }
+          >
+            {!isFormComplete() ? (
+              <span className="flex items-center gap-1">
+                <RiErrorWarningLine className="w-4 h-4" />
+                Incomplete
+              </span>
+            ) : (
+              initialData ? 'Update Film' : 'Publish Film'
+            )}
           </Button>
         </div>
       </form>
+
+      {showCloseConfirm && (
+        <ConfirmModal
+          title="Unsaved Changes"
+          message="You have unsaved changes. What would you like to do?"
+          confirmLabel="Save Changes"
+          onConfirm={(e) => {
+            setShowCloseConfirm(false);
+            handleSubmit(e as any);
+          }}
+          onCancel={() => {
+            setShowCloseConfirm(false);
+            onClose();
+          }}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          showCloseButton={true}
+          onCloseButtonClick={() => setShowCloseConfirm(false)}
+        />
+      )}
     </FormModal>
   );
 } 

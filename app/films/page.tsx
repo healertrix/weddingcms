@@ -26,6 +26,7 @@ type Film = {
   created_at: string;
   updated_at: string;
   is_featured_home: boolean;
+  missingFields?: string[];
 };
 
 const formatDescription = (description: string) => {
@@ -44,6 +45,8 @@ export default function FilmsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
   const [previewVideo, setPreviewVideo] = useState<string | null>(null);
+  const [showMissingFieldsModal, setShowMissingFieldsModal] = useState(false);
+  const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
   const supabase = createClientComponentClient<Database>();
   const router = useRouter();
 
@@ -71,7 +74,30 @@ export default function FilmsPage() {
     }
   };
 
+  const isFilmComplete = (film: Film) => {
+    const missingFields = [];
+    
+    if (!film.title?.trim()) missingFields.push('Title');
+    if (!film.couple_names?.trim()) missingFields.push('Couple Names');
+    if (!film.wedding_date?.trim()) missingFields.push('Wedding Date');
+    if (!film.location?.trim()) missingFields.push('Location');
+    if (!film.description?.trim()) missingFields.push('Description');
+    if (!film.video_url?.trim()) missingFields.push('Video URL');
+
+    film.missingFields = missingFields;
+    return missingFields.length === 0;
+  };
+
   const handleStatusChange = async (filmId: string, newStatus: FilmStatus) => {
+    const film = films.find(f => f.id === filmId);
+    if (!film) return;
+
+    if (newStatus === 'published' && !isFilmComplete(film)) {
+      setSelectedFilm(film);
+      setShowMissingFieldsModal(true);
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('films')
@@ -320,10 +346,30 @@ export default function FilmsPage() {
                     {film.status === 'draft' ? (
                       <Button
                         variant="secondary"
-                        onClick={() => handleStatusChange(film.id, 'published')}
-                        className="bg-green-50 text-green-600 hover:bg-green-100"
+                        onClick={() => isFilmComplete(film) 
+                          ? handleStatusChange(film.id, 'published')
+                          : handleStatusChange(film.id, 'published')
+                        }
+                        className={`${
+                          isFilmComplete(film)
+                            ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                            : 'bg-red-50 text-red-600 border-red-100 opacity-80'
+                        }`}
+                        disabled={false}
+                        title={
+                          !isFilmComplete(film)
+                            ? 'Click to see missing fields'
+                            : 'Publish film'
+                        }
                       >
-                        Publish
+                        {!isFilmComplete(film) ? (
+                          <span className="flex items-center gap-1">
+                            <RiErrorWarningLine className="w-4 h-4" />
+                            Incomplete
+                          </span>
+                        ) : (
+                          'Publish'
+                        )}
                       </Button>
                     ) : (
                       <Button
@@ -429,6 +475,37 @@ export default function FilmsPage() {
           }}
           confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
           disabled={isDeleting}
+        />
+      )}
+
+      {showMissingFieldsModal && selectedFilm && (
+        <ConfirmModal
+          title="Incomplete Film"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">The following fields are required before publishing:</p>
+              <ul className="list-disc list-inside space-y-2 text-red-600">
+                {selectedFilm.missingFields?.map((field, index) => (
+                  <li key={index} className="flex items-center gap-2">
+                    <RiErrorWarningLine className="flex-shrink-0" />
+                    {field}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-sm text-gray-500 mt-4">Click Edit to complete these fields.</p>
+            </div>
+          }
+          confirmLabel="Edit Film"
+          onConfirm={() => {
+            setShowMissingFieldsModal(false);
+            setEditingFilm(selectedFilm);
+            setShowForm(true);
+          }}
+          onCancel={() => {
+            setShowMissingFieldsModal(false);
+            setSelectedFilm(null);
+          }}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
         />
       )}
 
