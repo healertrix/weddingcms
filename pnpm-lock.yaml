@@ -23,6 +23,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.46.2
         version: 2.46.2
+      '@tanstack/react-virtual':
+        specifier: ^3.10.9
+        version: 3.10.9(react-dom@19.0.0-rc-66855b96-20241106(react@19.0.0-rc-66855b96-20241106))(react@19.0.0-rc-66855b96-20241106)
       '@tiptap/pm':
         specifier: ^2.10.3
         version: 2.10.3

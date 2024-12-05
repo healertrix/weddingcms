@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiArticleLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine, RiStarLine, RiStarFill, RiHome2Line, RiHome2Fill } from 'react-icons/ri';
@@ -10,6 +10,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '../types/supabase';
 import { useRouter } from 'next/navigation';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 type BlogStatus = 'draft' | 'published';
 
@@ -79,24 +80,50 @@ export default function BlogPage() {
   const router = useRouter();
   const [showMissingFieldsModal, setShowMissingFieldsModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const POSTS_PER_PAGE = 10;
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const fetchPosts = useCallback(async (page = 1) => {
+    setIsLoading(true);
+    try {
+      const from = (page - 1) * POSTS_PER_PAGE;
+      const to = from + POSTS_PER_PAGE - 1;
+      
+      const { data, error, count } = await supabase
+        .from('blog_posts')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      if (page === 1) {
+        setPosts(data as BlogPost[]);
+      } else {
+        setPosts(prev => [...prev, ...(data as BlogPost[])]);
+      }
+
+      setHasMore(count ? from + POSTS_PER_PAGE < count : false);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [supabase]);
 
   useEffect(() => {
     fetchPosts();
-  }, []);
+  }, [fetchPosts]);
 
-  const fetchPosts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('blog_posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPosts(data as BlogPost[]);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
+  const loadMore = useCallback(() => {
+    if (!isLoading && hasMore) {
+      setCurrentPage(prev => prev + 1);
+      fetchPosts(currentPage + 1);
     }
-  };
+  }, [isLoading, hasMore, currentPage, fetchPosts]);
 
   const isPostComplete = (post: BlogPost) => {
     const missingFields = [];
@@ -303,6 +330,13 @@ export default function BlogPage() {
     return matchesSearch && matchesStatus;
   });
 
+  const rowVirtualizer = useVirtualizer({
+    count: filteredPosts.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 200, // Estimated height of each blog post item
+    overscan: 5,
+  });
+
   return (
     <div className='min-h-screen max-h-screen flex flex-col p-8 overflow-hidden'>
       <div className="flex-none">
@@ -346,162 +380,199 @@ export default function BlogPage() {
       </div>
 
       <div className='flex-1 bg-white rounded-lg shadow-sm mt-6 overflow-hidden flex flex-col min-h-0'>
-        <div className='flex-1 overflow-y-auto'>
-          <div className='grid grid-cols-1 gap-6 p-6'>
-            {filteredPosts.map((post) => (
-              <div 
-                key={post.id} 
-                className='flex flex-col md:flex-row gap-6 p-6 bg-white border rounded-xl hover:shadow-md transition-all duration-200'
-              >
-                {post.featured_image_key && (
-                  <div className="flex-shrink-0 w-full md:w-64 h-64 md:h-48 relative rounded-lg overflow-hidden group">
-                    <img
-                      src={post.featured_image_key}
-                      alt={post.title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                    <div 
-                      className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center cursor-pointer"
-                      onClick={() => setPreviewImage(post.featured_image_key)}
-                    >
-                      <RiZoomInLine className="text-white opacity-0 group-hover:opacity-100 w-8 h-8 transform scale-0 group-hover:scale-100 transition-all duration-300" />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0 flex flex-col">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className='text-xl font-medium text-gray-900'>{post.title}</h3>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                          post.status === 'published' 
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {post.status === 'published' ? 'Published' : 'Draft'}
-                        </span>
-                        {post.status === 'published' && (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleFeaturedToggle(post.id, 'home', post.is_featured_home)}
-                              className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${
-                                post.is_featured_home
-                                  ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
-                                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                              }`}
-                              title={`${post.is_featured_home ? 'Remove from' : 'Feature on'} home page`}
-                            >
-                              {post.is_featured_home ? <RiHome2Fill /> : <RiHome2Line />}
-                              <span className="text-sm">Home</span>
-                            </button>
-                            <button
-                              onClick={() => handleFeaturedToggle(post.id, 'blog', post.is_featured_blog)}
-                              className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${
-                                post.is_featured_blog
-                                  ? 'bg-purple-50 text-purple-600 hover:bg-purple-100'
-                                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                              }`}
-                              title={`${post.is_featured_blog ? 'Remove from' : 'Feature in'} blog highlights`}
-                            >
-                              {post.is_featured_blog ? <RiStarFill /> : <RiStarLine />}
-                              <span className="text-sm">Featured</span>
-                            </button>
+        <div 
+          ref={parentRef}
+          className='flex-1 overflow-y-auto'
+          onScroll={(e) => {
+            const target = e.target as HTMLDivElement;
+            if (
+              target.scrollHeight - target.scrollTop <= target.clientHeight * 1.5 &&
+              !isLoading &&
+              hasMore
+            ) {
+              loadMore();
+            }
+          }}
+        >
+          <div
+            className='relative'
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: '100%',
+            }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const post = filteredPosts[virtualRow.index];
+              return (
+                <div
+                  key={post.id}
+                  className='absolute top-0 left-0 w-full'
+                  style={{
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <div className='p-6'>
+                    <div className='flex flex-col md:flex-row gap-6 p-6 bg-white border rounded-xl hover:shadow-md transition-all duration-200'>
+                      {post.featured_image_key && (
+                        <div className="flex-shrink-0 w-full md:w-64 h-64 md:h-48 relative rounded-lg overflow-hidden group">
+                          <img
+                            src={post.featured_image_key}
+                            alt={post.title}
+                            loading="lazy"
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                          <div 
+                            className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center cursor-pointer"
+                            onClick={() => setPreviewImage(post.featured_image_key)}
+                          >
+                            <RiZoomInLine className="text-white opacity-0 group-hover:opacity-100 w-8 h-8 transform scale-0 group-hover:scale-100 transition-all duration-300" />
                           </div>
-                        )}
-                      </div>
-                      
-                      <div className='flex items-center flex-wrap gap-4 text-sm text-gray-500 mb-4'>
-                        {post.wedding_date && (
-                          <span className="flex items-center">
-                            <RiCalendarLine className="mr-1.5" />
-                            {formatDate(post.wedding_date)}
-                          </span>
-                        )}
-                        {post.location && (
-                          <span className="flex items-center">
-                            <RiMapPinLine className="mr-1.5" />
-                            {post.location}
-                          </span>
-                        )}
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0 flex flex-col">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className='text-xl font-medium text-gray-900'>{post.title}</h3>
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                                post.status === 'published' 
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {post.status === 'published' ? 'Published' : 'Draft'}
+                              </span>
+                              {post.status === 'published' && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleFeaturedToggle(post.id, 'home', post.is_featured_home)}
+                                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${
+                                      post.is_featured_home
+                                        ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                                        : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                    }`}
+                                    title={`${post.is_featured_home ? 'Remove from' : 'Feature on'} home page`}
+                                  >
+                                    {post.is_featured_home ? <RiHome2Fill /> : <RiHome2Line />}
+                                    <span className="text-sm">Home</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleFeaturedToggle(post.id, 'blog', post.is_featured_blog)}
+                                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${
+                                      post.is_featured_blog
+                                        ? 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                                        : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                    }`}
+                                    title={`${post.is_featured_blog ? 'Remove from' : 'Feature in'} blog highlights`}
+                                  >
+                                    {post.is_featured_blog ? <RiStarFill /> : <RiStarLine />}
+                                    <span className="text-sm">Featured</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className='flex items-center flex-wrap gap-4 text-sm text-gray-500 mb-4'>
+                              {post.wedding_date && (
+                                <span className="flex items-center">
+                                  <RiCalendarLine className="mr-1.5" />
+                                  {formatDate(post.wedding_date)}
+                                </span>
+                              )}
+                              {post.location && (
+                                <span className="flex items-center">
+                                  <RiMapPinLine className="mr-1.5" />
+                                  {post.location}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <p 
+                          className="text-gray-600 flex-grow mb-4 line-clamp-2"
+                          dangerouslySetInnerHTML={{ __html: formatContent(post.content) }}
+                        />
+
+                        <div className="flex items-center gap-3 pt-4 border-t">
+                          {post.status === 'draft' ? (
+                            <Button
+                              variant="secondary"
+                              onClick={() => isPostComplete(post) 
+                                ? handleStatusChange(post.id, 'published')
+                                : handleIncompleteClick(post)
+                              }
+                              className={`${
+                                isPostComplete(post)
+                                  ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                                  : 'bg-red-50 text-red-600 border-red-100 opacity-80'
+                              }`}
+                              disabled={false}
+                              title={
+                                !isPostComplete(post)
+                                  ? 'Click to see missing fields'
+                                  : 'Publish post'
+                              }
+                            >
+                              {!isPostComplete(post) ? (
+                                <span className="flex items-center gap-1">
+                                  <RiErrorWarningLine className="w-4 h-4" />
+                                  Incomplete
+                                </span>
+                              ) : (
+                                'Publish'
+                              )}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="secondary"
+                              onClick={() => handleStatusChange(post.id, 'draft')}
+                              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+                            >
+                              Unpublish
+                            </Button>
+                          )}
+                          <Button
+                            variant="secondary"
+                            icon={RiEditLine}
+                            onClick={() => {
+                              setEditingPost(post);
+                              setShowForm(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={() => handleDeleteClick(post)}
+                            className="text-red-600 hover:bg-red-50"
+                            title="Delete blog post"
+                          >
+                            <RiDeleteBin6Line />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <p 
-                    className="text-gray-600 flex-grow mb-4 line-clamp-2"
-                    dangerouslySetInnerHTML={{ __html: formatContent(post.content) }}
-                  />
-
-                  <div className="flex items-center gap-3 pt-4 border-t">
-                    {post.status === 'draft' ? (
-                      <Button
-                        variant="secondary"
-                        onClick={() => isPostComplete(post) 
-                          ? handleStatusChange(post.id, 'published')
-                          : handleIncompleteClick(post)
-                        }
-                        className={`${
-                          isPostComplete(post)
-                            ? 'bg-green-50 text-green-600 hover:bg-green-100'
-                            : 'bg-red-50 text-red-600 border-red-100 opacity-80'
-                        }`}
-                        disabled={false}
-                        title={
-                          !isPostComplete(post)
-                            ? 'Click to see missing fields'
-                            : 'Publish post'
-                        }
-                      >
-                        {!isPostComplete(post) ? (
-                          <span className="flex items-center gap-1">
-                            <RiErrorWarningLine className="w-4 h-4" />
-                            Incomplete
-                          </span>
-                        ) : (
-                          'Publish'
-                        )}
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        onClick={() => handleStatusChange(post.id, 'draft')}
-                        className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-                      >
-                        Unpublish
-                      </Button>
-                    )}
-                    <Button
-                      variant="secondary"
-                      icon={RiEditLine}
-                      onClick={() => {
-                        setEditingPost(post);
-                        setShowForm(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => handleDeleteClick(post)}
-                      className="text-red-600 hover:bg-red-50"
-                      title="Delete blog post"
-                    >
-                      <RiDeleteBin6Line />
-                    </Button>
                   </div>
                 </div>
-              </div>
-            ))}
-
-            {filteredPosts.length === 0 && (
-              <div className="text-center py-12">
-                <RiArticleLine className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <p className="text-lg text-gray-500">No blog posts found</p>
-                <p className="text-sm text-gray-400 mt-1">Try adjusting your search or add a new blog post</p>
-              </div>
-            )}
+              );
+            })}
           </div>
+
+          {isLoading && (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B4513]"></div>
+            </div>
+          )}
+
+          {filteredPosts.length === 0 && !isLoading && (
+            <div className="text-center py-12">
+              <RiArticleLine className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <p className="text-lg text-gray-500">No blog posts found</p>
+              <p className="text-sm text-gray-400 mt-1">Try adjusting your search or add a new blog post</p>
+            </div>
+          )}
         </div>
       </div>
 
