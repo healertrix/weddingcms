@@ -161,8 +161,9 @@ export default function BlogPage() {
         });
       }, 100);
 
+      // Delete featured image if it exists
       if (deletingPost.featured_image_key) {
-        setDeleteProgress(30);
+        setDeleteProgress(20);
         const imageResponse = await fetch('/api/upload/delete', {
           method: 'POST',
           headers: {
@@ -172,11 +173,31 @@ export default function BlogPage() {
         });
 
         if (!imageResponse.ok) {
-          throw new Error('Failed to delete image from storage');
+          throw new Error('Failed to delete featured image from storage');
         }
-        setDeleteProgress(60);
       }
 
+      // Delete all gallery images if they exist
+      if (deletingPost.gallery_images && deletingPost.gallery_images.length > 0) {
+        setDeleteProgress(40);
+        for (const imageUrl of deletingPost.gallery_images) {
+          const galleryImageResponse = await fetch('/api/upload/delete', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ imageKey: imageUrl }),
+          });
+
+          if (!galleryImageResponse.ok) {
+            throw new Error('Failed to delete gallery image from storage');
+          }
+        }
+      }
+
+      setDeleteProgress(70);
+
+      // Delete the blog post from the database
       const { error: deleteError } = await supabase
         .from('blog_posts')
         .delete()
