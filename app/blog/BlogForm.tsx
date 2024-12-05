@@ -581,21 +581,19 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             <RiArrowRightSLine className="w-8 h-8" />
           </button>
 
-          {/* Image container */}
+          {/* Image container with counter */}
           <div 
-            className="w-full h-full flex items-center justify-center p-4"
+            className="w-full h-full flex flex-col items-center justify-center gap-4 p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <img
               src={previewImage}
               alt={`Gallery image ${previewImageIndex + 1}`}
-              className="max-w-[90vw] max-h-[90vh] object-contain"
+              className="max-w-[90vw] max-h-[85vh] object-contain"
             />
-          </div>
-
-          {/* Image counter */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white">
-            {previewImageIndex + 1} / {formData.gallery_images?.length}
+            <div className="text-white text-sm font-medium bg-black bg-opacity-75 px-4 py-1.5 rounded-full">
+              {previewImageIndex + 1} / {formData.gallery_images?.length}
+            </div>
           </div>
         </div>
       )}
