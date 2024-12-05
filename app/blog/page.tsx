@@ -25,6 +25,7 @@ type BlogPost = {
   is_featured_blog: boolean;
   status: BlogStatus;
   missingFields?: string[];
+  gallery_images: string[];
 };
 
 const formatContent = (content: string) => {
