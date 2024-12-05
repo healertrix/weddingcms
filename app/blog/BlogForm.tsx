@@ -310,7 +310,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
           <FormField label="Featured Image" required>
             <div className="space-y-2">
-              {formData.featuredImageUrl && (
+              {formData.featuredImageUrl ? (
                 <div className="relative aspect-video rounded-lg overflow-hidden group">
                   <img
                     src={formData.featuredImageUrl}
@@ -349,15 +349,29 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                     </div>
                   </div>
                 </div>
+              ) : (
+                <ImageDropzone
+                  onChange={handleFeaturedImageUpload}
+                  maxFiles={1}
+                  onDelete={handleDeleteClick}
+                  disabled={isDeleting}
+                  folder="blogposts"
+                  multiple={false}
+                />
               )}
-              <ImageDropzone
-                onChange={handleFeaturedImageUpload}
-                maxFiles={1}
-                onDelete={handleDeleteClick}
-                disabled={isDeleting}
-                folder="blogposts"
-                multiple={false}
-              />
+              {isDeleting && (
+                <div className="mt-2">
+                  <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                      style={{ width: `${deleteProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Deleting image... {deleteProgress}%
+                  </p>
+                </div>
+              )}
             </div>
           </FormField>
 
