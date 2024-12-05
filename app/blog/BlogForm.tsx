@@ -981,14 +981,29 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
       {showUnsavedChangesWarning && (
         <ConfirmModal
           title="Unsaved Changes"
-          message="You have unsaved changes. Are you sure you want to close?"
-          confirmLabel="Close Without Saving"
-          onConfirm={() => {
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">You have unsaved changes. What would you like to do?</p>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                  <p>Choose to save your changes or close without saving.</p>
+                </div>
+              </div>
+            </div>
+          }
+          confirmLabel="Save"
+          onConfirm={(e) => {
+            setShowUnsavedChangesWarning(false);
+            handleSubmit(e as any, true);
+          }}
+          onCancel={() => {
             setShowUnsavedChangesWarning(false);
             onClose();
           }}
-          onCancel={() => setShowUnsavedChangesWarning(false)}
-          confirmButtonClassName="bg-red-600 hover:bg-red-700 text-white"
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          showCancelButton={true}
+          cancelLabel="Exit without saving"
         />
       )}
 
