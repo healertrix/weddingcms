@@ -57,11 +57,12 @@ const ImagePreviewModal = ({ imageUrl, onClose }: ImagePreviewModalProps) => {
 
 interface ImageDropzoneProps {
   onChange: (files: Array<{ key: string; url: string }>) => void;
-  value?: string;
+  value?: string | string[];
   maxFiles?: number;
-  onDelete?: () => void;
+  onDelete?: (index?: number) => void;
   disabled?: boolean;
   folder?: string;
+  multiple?: boolean;
 }
 
 export default function ImageDropzone({ 
@@ -70,7 +71,8 @@ export default function ImageDropzone({
   maxFiles = 1,
   onDelete,
   disabled = false,
-  folder = 'general'
+  folder = 'general',
+  multiple = false
 }: ImageDropzoneProps) {
   const [uploadStatus, setUploadStatus] = useState<{
     status: 'idle' | 'uploading' | 'success' | 'error';
@@ -93,41 +95,32 @@ export default function ImageDropzone({
     setUploadProgress(0);
 
     try {
-      const formData = new FormData();
-      formData.append('file', acceptedFiles[0]);
-      formData.append('folder', folder);
+      const uploadedFiles = [];
+      for (const file of acceptedFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', folder);
 
-      // Start progress simulation
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
         });
-      }, 100);
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
 
-      if (!response.ok) {
-        throw new Error('Upload failed');
+        const data = await response.json();
+        uploadedFiles.push({ key: data.key, url: data.url });
       }
 
-      const data = await response.json();
-      
-      // Complete the progress
       setUploadProgress(100);
       setTimeout(() => {
-        onChange([{ key: data.key, url: data.url }]);
+        onChange(uploadedFiles);
         setUploadStatus({ status: 'success' });
         setUploadProgress(0);
       }, 500);
 
-      clearInterval(progressInterval);
     } catch (error) {
       console.error('Upload error:', error);
       setUploadStatus({
@@ -144,95 +137,106 @@ export default function ImageDropzone({
       'image/*': ['.jpeg', '.jpg', '.png', '.gif']
     },
     maxFiles,
-    multiple: false,
+    multiple: multiple,
     disabled: disabled || uploadStatus.status === 'uploading'
   });
 
-  return (
-    <div className="relative">
-      {value ? (
-        <div className="relative w-full aspect-video rounded-lg overflow-hidden group">
-          <img
-            src={value}
-            alt="Uploaded image"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-40 transition-all flex items-center justify-center">
-            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowPreview(true);
-                }}
-                className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
-                aria-label="View full size"
-                title="View full size"
-              >
-                <RiZoomInLine size={20} />
-              </button>
-              {onDelete && !disabled && (
+  const renderImages = () => {
+    if (!value) return null;
+    
+    const images = Array.isArray(value) ? value : [value];
+    
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+        {images.map((imageUrl, index) => (
+          <div key={index} className="relative aspect-video rounded-lg overflow-hidden group">
+            <img
+              src={imageUrl}
+              alt={`Gallery image ${index + 1}`}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-40 transition-all flex items-center justify-center">
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
                 <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    onDelete();
+                    setShowPreview(true);
                   }}
-                  className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
-                  disabled={disabled}
-                  aria-label="Delete image"
-                  title="Delete image"
+                  className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
+                  aria-label="View full size"
+                  title="View full size"
                 >
-                  <RiCloseLine size={20} />
+                  <RiZoomInLine size={20} />
                 </button>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div 
-          {...getRootProps()} 
-          className={`border-2 border-dashed rounded-lg p-4 text-center hover:border-gray-400 transition-colors
-            ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-            ${disabled || uploadStatus.status === 'uploading' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-            ${uploadStatus.status === 'error' ? 'border-red-500 bg-red-50' : ''}
-            ${uploadStatus.status === 'success' ? 'border-green-500 bg-green-50' : ''}`}
-        >
-          <input {...getInputProps()} />
-          <div className="flex flex-col items-center justify-center text-gray-500">
-            <RiImageAddLine className={`w-12 h-12 mb-2 ${uploadStatus.status === 'error' ? 'text-red-500' : ''}`} />
-            <p className="text-sm">
-              {uploadStatus.status === 'uploading' ? (
-                'Uploading...'
-              ) : uploadStatus.status === 'error' ? (
-                uploadStatus.message || 'Error uploading image'
-              ) : isDragActive ? (
-                'Drop the image here'
-              ) : (
-                `Drag & drop an image here, or click to select`
-              )}
-            </p>
-            {maxFiles > 1 && (
-              <p className="text-xs text-gray-400 mt-1">
-                Maximum {maxFiles} files allowed
-              </p>
-            )}
-          </div>
-          {uploadStatus.status === 'uploading' && (
-            <div className="mt-4">
-              <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-600 transition-all duration-300 ease-out"
-                  style={{ width: `${uploadProgress}%` }}
-                />
+                {onDelete && !disabled && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onDelete(index);
+                    }}
+                    className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
+                    disabled={disabled}
+                    aria-label="Delete image"
+                    title="Delete image"
+                  >
+                    <RiCloseLine size={20} />
+                  </button>
+                )}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Uploading... {uploadProgress}%
-              </p>
             </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="relative">
+      {renderImages()}
+      <div 
+        {...getRootProps()} 
+        className={`border-2 border-dashed rounded-lg p-4 text-center hover:border-gray-400 transition-colors
+          ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+          ${disabled || uploadStatus.status === 'uploading' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          ${uploadStatus.status === 'error' ? 'border-red-500 bg-red-50' : ''}
+          ${uploadStatus.status === 'success' ? 'border-green-500 bg-green-50' : ''}`}
+      >
+        <input {...getInputProps()} />
+        <div className="flex flex-col items-center justify-center text-gray-500">
+          <RiImageAddLine className={`w-12 h-12 mb-2 ${uploadStatus.status === 'error' ? 'text-red-500' : ''}`} />
+          <p className="text-sm">
+            {uploadStatus.status === 'uploading' ? (
+              'Uploading...'
+            ) : uploadStatus.status === 'error' ? (
+              uploadStatus.message || 'Error uploading image'
+            ) : isDragActive ? (
+              'Drop the image here'
+            ) : (
+              `Drag & drop an image here, or click to select`
+            )}
+          </p>
+          {maxFiles > 1 && (
+            <p className="text-xs text-gray-400 mt-1">
+              Maximum {maxFiles} files allowed
+            </p>
           )}
         </div>
-      )}
+        {uploadStatus.status === 'uploading' && (
+          <div className="mt-4">
+            <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Uploading... {uploadProgress}%
+            </p>
+          </div>
+        )}
+      </div>
       {uploadStatus.status === 'error' && uploadStatus.message && (
         <p className="text-sm text-red-500 mt-2">{uploadStatus.message}</p>
       )}

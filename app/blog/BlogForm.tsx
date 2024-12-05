@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine, RiCloseLine, RiErrorWarningLine } from 'react-icons/ri';
+import { RiSaveLine, RiCloseLine, RiErrorWarningLine, RiZoomInLine } from 'react-icons/ri';
 import ImageDropzone from '../components/forms/ImageDropzone';
 import FormModal from '../components/forms/FormModal';
 import TextEditor from '../components/forms/TextEditor';
@@ -32,17 +32,17 @@ export interface BlogFormData {
 }
 
 export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData }: BlogFormProps) {
-  const [formData, setFormData] = useState<BlogFormData>(initialData || {
-    title: '',
-    slug: '',
-    content: '',
-    featuredImageKey: '',
-    featuredImageUrl: '',
-    weddingDate: '',
-    location: '',
-    isFeaturedHome: false,
-    isFeaturedBlog: false,
-    gallery_images: ['asdasdasd']
+  const [formData, setFormData] = useState<BlogFormData>({
+    title: initialData?.title || '',
+    slug: initialData?.slug || '',
+    content: initialData?.content || '',
+    featuredImageKey: initialData?.featuredImageKey || '',
+    featuredImageUrl: initialData?.featuredImageUrl || '',
+    weddingDate: initialData?.weddingDate || '',
+    location: initialData?.location || '',
+    isFeaturedHome: initialData?.isFeaturedHome || false,
+    isFeaturedBlog: initialData?.isFeaturedBlog || false,
+    gallery_images: Array.isArray(initialData?.gallery_images) ? initialData.gallery_images : []
   });
   const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -51,6 +51,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const [deleteProgress, setDeleteProgress] = useState(0);
   const [initialFormData] = useState(formData);
   const [showIncompleteWarning, setShowIncompleteWarning] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const isFormComplete = () => {
     const requiredFields = {
@@ -93,23 +94,19 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
     try {
       const postData = {
-        title: formData.title,
-        slug: formData.slug,
-        content: formData.content,
+        ...formData,
         featured_image_key: formData.featuredImageKey || null,
         featured_image_url: formData.featuredImageUrl || null,
         wedding_date: formData.weddingDate || null,
         location: formData.location || null,
-        is_featured_home: formData.isFeaturedHome,
-        is_featured_blog: formData.isFeaturedBlog,
-        gallery_images: formData.gallery_images,
+        gallery_images: formData.gallery_images || [],
         status: saveAsDraft ? 'draft' : 'published'
       };
 
       if (saveAsDraft) {
-        onSaveAsDraft(formData); // Use formData instead of postData
+        onSaveAsDraft(formData);
       } else {
-        onSubmit(formData); // Use formData instead of postData
+        onSubmit(formData);
       }
     } catch (error) {
       console.error('Error in handleSubmit:', error);
@@ -191,6 +188,49 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     }
   };
 
+  const handleGalleryImageUpload = (files: Array<{ key: string; url: string }>) => {
+    const newUrls = files.map(file => file.url);
+    setFormData(prevData => ({
+      ...prevData,
+      gallery_images: [...(prevData.gallery_images || []), ...newUrls]
+    }));
+  };
+
+  const handleGalleryImageDelete = (index: number | undefined) => {
+    if (typeof index !== 'number') return;
+    
+    const imageToDelete = formData.gallery_images[index];
+    
+    try {
+      // Create a new array without the deleted image immediately for better UX
+      const updatedGallery = [...formData.gallery_images];
+      updatedGallery.splice(index, 1);
+      
+      setFormData(prevData => ({
+        ...prevData,
+        gallery_images: updatedGallery
+      }));
+
+      // Then attempt to delete from storage
+      fetch('/api/upload/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageKey: imageToDelete }),
+      }).catch(error => {
+        console.error('Error deleting gallery image:', error);
+        // Revert the state if delete fails
+        setFormData(prevData => ({
+          ...prevData,
+          gallery_images: formData.gallery_images
+        }));
+      });
+    } catch (error) {
+      console.error('Error handling gallery image delete:', error);
+    }
+  };
+
   // Continue with the existing return statement, but add the modals at the end
   return (
     <>
@@ -269,27 +309,116 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
           </div>
 
           <FormField label="Featured Image" required>
-            <ImageDropzone
-              onChange={handleFeaturedImageUpload}
-              value={formData.featuredImageUrl}
-              maxFiles={1}
-              onDelete={handleDeleteClick}
-              disabled={isDeleting}
-              folder="blogposts"
-            />
-            {isDeleting && (
-              <div className="mt-2">
-                <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-red-600 transition-all duration-300 ease-out"
-                    style={{ width: `${deleteProgress}%` }}
+            <div className="space-y-2">
+              {formData.featuredImageUrl && (
+                <div className="relative aspect-video rounded-lg overflow-hidden group">
+                  <img
+                    src={formData.featuredImageUrl}
+                    alt="Featured image"
+                    className="w-full h-full object-cover"
                   />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPreviewImage(formData.featuredImageUrl || null);
+                        }}
+                        className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
+                        aria-label="View full size"
+                        title="View full size"
+                        type="button"
+                      >
+                        <RiZoomInLine size={20} />
+                      </button>
+                      {!isDeleting && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleDeleteClick();
+                          }}
+                          className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
+                          disabled={isDeleting}
+                          aria-label="Delete image"
+                          title="Delete image"
+                          type="button"
+                        >
+                          <RiCloseLine size={20} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  Deleting image... {deleteProgress}%
-                </p>
-              </div>
-            )}
+              )}
+              <ImageDropzone
+                onChange={handleFeaturedImageUpload}
+                maxFiles={1}
+                onDelete={handleDeleteClick}
+                disabled={isDeleting}
+                folder="blogposts"
+                multiple={false}
+              />
+            </div>
+          </FormField>
+
+          <FormField label="Gallery Images">
+            <div className="space-y-4">
+              <ImageDropzone
+                onChange={handleGalleryImageUpload}
+                maxFiles={Math.max(0, 10 - (formData.gallery_images?.length || 0))}
+                disabled={isDeleting || (formData.gallery_images?.length || 0) >= 10}
+                folder="bloggallery"
+                multiple={true}
+              />
+              <p className="text-sm text-gray-500 mb-4">
+                Upload up to 10 images for the blog gallery ({formData.gallery_images?.length || 0}/10 uploaded)
+              </p>
+              
+              {formData.gallery_images && formData.gallery_images.length > 0 && (
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-gray-900 mb-4">Gallery Preview</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {formData.gallery_images.map((imageUrl, index) => (
+                      <div key={`${imageUrl}-${index}`} className="relative aspect-video rounded-lg overflow-hidden group">
+                        <img
+                          src={imageUrl}
+                          alt={`Gallery image ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all">
+                          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setPreviewImage(imageUrl);
+                              }}
+                              className="p-1 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
+                              type="button"
+                              aria-label={`View gallery image ${index + 1}`}
+                              title="View full size"
+                            >
+                              <RiZoomInLine size={16} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleGalleryImageDelete(index);
+                              }}
+                              className="p-1 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
+                              type="button"
+                              aria-label={`Delete gallery image ${index + 1}`}
+                              title={`Delete gallery image ${index + 1}`}
+                            >
+                              <RiCloseLine size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </FormField>
 
           <FormField label="Content" required>
@@ -352,6 +481,32 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
           </div>
         </form>
       </FormModal>
+
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-90"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
+            aria-label="Close preview"
+            type="button"
+          >
+            <RiCloseLine className="w-8 h-8" />
+          </button>
+          <div 
+            className="w-full h-full flex items-center justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewImage}
+              alt="Full size preview"
+              className="max-w-[90vw] max-h-[90vh] object-contain"
+            />
+          </div>
+        </div>
+      )}
 
       {showDeleteImageConfirm && (
         <ConfirmModal

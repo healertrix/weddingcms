@@ -531,7 +531,8 @@ export default function BlogPage() {
             weddingDate: editingPost.wedding_date || '',
             location: editingPost.location || '',
             isFeaturedHome: editingPost.is_featured_home || false,
-            isFeaturedBlog: editingPost.is_featured_blog || false
+            isFeaturedBlog: editingPost.is_featured_blog || false,
+            gallery_images: editingPost.gallery_images || []
           } : undefined}
         />
       )}
