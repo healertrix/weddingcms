@@ -63,6 +63,7 @@ interface ImageDropzoneProps {
   disabled?: boolean;
   folder?: string;
   multiple?: boolean;
+  hidePreview?: boolean;
 }
 
 export default function ImageDropzone({ 
@@ -72,14 +73,15 @@ export default function ImageDropzone({
   onDelete,
   disabled = false,
   folder = 'general',
-  multiple = false
+  multiple = false,
+  hidePreview = false
 }: ImageDropzoneProps) {
   const [uploadStatus, setUploadStatus] = useState<{
     status: 'idle' | 'uploading' | 'success' | 'error';
     message?: string;
   }>({ status: 'idle' });
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [showPreview, setShowPreview] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -96,7 +98,10 @@ export default function ImageDropzone({
 
     try {
       const uploadedFiles = [];
-      for (const file of acceptedFiles) {
+      const totalFiles = acceptedFiles.length;
+      
+      for (let i = 0; i < acceptedFiles.length; i++) {
+        const file = acceptedFiles[i];
         const formData = new FormData();
         formData.append('file', file);
         formData.append('folder', folder);
@@ -112,9 +117,11 @@ export default function ImageDropzone({
 
         const data = await response.json();
         uploadedFiles.push({ key: data.key, url: data.url });
+        
+        // Update progress based on completed files
+        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
       }
 
-      setUploadProgress(100);
       setTimeout(() => {
         onChange(uploadedFiles);
         setUploadStatus({ status: 'success' });
@@ -149,7 +156,7 @@ export default function ImageDropzone({
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
         {images.map((imageUrl, index) => (
-          <div key={index} className="relative aspect-video rounded-lg overflow-hidden group">
+          <div key={imageUrl} className="relative aspect-video rounded-lg overflow-hidden group">
             <img
               src={imageUrl}
               alt={`Gallery image ${index + 1}`}
@@ -161,7 +168,7 @@ export default function ImageDropzone({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    setShowPreview(true);
+                    setPreviewImageUrl(imageUrl);
                   }}
                   className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
                   aria-label="View full size"
@@ -194,7 +201,7 @@ export default function ImageDropzone({
 
   return (
     <div className="relative">
-      {renderImages()}
+      {!hidePreview && renderImages()}
       <div 
         {...getRootProps()} 
         className={`border-2 border-dashed rounded-lg p-4 text-center hover:border-gray-400 transition-colors
@@ -212,9 +219,11 @@ export default function ImageDropzone({
             ) : uploadStatus.status === 'error' ? (
               uploadStatus.message || 'Error uploading image'
             ) : isDragActive ? (
-              'Drop the image here'
+              'Drop the images here'
+            ) : multiple ? (
+              'Drag & drop images here, or click to select'
             ) : (
-              `Drag & drop an image here, or click to select`
+              'Drag & drop an image here, or click to select'
             )}
           </p>
           {maxFiles > 1 && (
@@ -241,10 +250,10 @@ export default function ImageDropzone({
         <p className="text-sm text-red-500 mt-2">{uploadStatus.message}</p>
       )}
 
-      {showPreview && value && (
+      {previewImageUrl && (
         <ImagePreviewModal
-          imageUrl={value}
-          onClose={() => setShowPreview(false)}
+          imageUrl={previewImageUrl}
+          onClose={() => setPreviewImageUrl(null)}
         />
       )}
     </div>

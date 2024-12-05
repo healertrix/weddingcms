@@ -559,13 +559,16 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             </div>
           </FormField>
 
-          <FormField label="Gallery Images" required>
+          <FormField label="Gallery Images">
             <div className="space-y-4">
               <ImageDropzone
                 onChange={handleGalleryImageUpload}
+                value={formData.gallery_images}
                 disabled={isDeleting}
                 folder="bloggallery"
                 multiple={true}
+                maxFiles={10}
+                hidePreview={true}
               />
               <p className="text-sm text-gray-500 mb-4">
                 Upload images for the blog gallery ({formData.gallery_images?.length || 0} uploaded)
