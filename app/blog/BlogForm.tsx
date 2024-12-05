@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine, RiCloseLine, RiErrorWarningLine, RiZoomInLine } from 'react-icons/ri';
+import { RiSaveLine, RiCloseLine, RiErrorWarningLine, RiZoomInLine, RiArrowLeftSLine, RiArrowRightSLine } from 'react-icons/ri';
 import ImageDropzone from '../components/forms/ImageDropzone';
 import FormModal from '../components/forms/FormModal';
 import TextEditor from '../components/forms/TextEditor';
@@ -52,6 +52,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const [initialFormData] = useState(formData);
   const [showIncompleteWarning, setShowIncompleteWarning] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImageIndex, setPreviewImageIndex] = useState<number>(-1);
 
   const isFormComplete = () => {
     const requiredFields = {
@@ -231,6 +232,43 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     }
   };
 
+  const handlePreviewImage = (imageUrl: string, index: number) => {
+    setPreviewImage(imageUrl);
+    setPreviewImageIndex(index);
+  };
+
+  const handleNavigatePreview = (direction: 'prev' | 'next') => {
+    if (!formData.gallery_images || previewImageIndex === -1) return;
+    
+    let newIndex = previewImageIndex;
+    if (direction === 'prev') {
+      newIndex = newIndex > 0 ? newIndex - 1 : formData.gallery_images.length - 1;
+    } else {
+      newIndex = newIndex < formData.gallery_images.length - 1 ? newIndex + 1 : 0;
+    }
+    
+    setPreviewImageIndex(newIndex);
+    setPreviewImage(formData.gallery_images[newIndex]);
+  };
+
+  const handleKeyPress = (e: KeyboardEvent) => {
+    if (previewImage) {
+      if (e.key === 'ArrowLeft') {
+        handleNavigatePreview('prev');
+      } else if (e.key === 'ArrowRight') {
+        handleNavigatePreview('next');
+      } else if (e.key === 'Escape') {
+        setPreviewImage(null);
+        setPreviewImageIndex(-1);
+      }
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [previewImage, previewImageIndex, formData.gallery_images]);
+
   // Continue with the existing return statement, but add the modals at the end
   return (
     <>
@@ -379,13 +417,12 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             <div className="space-y-4">
               <ImageDropzone
                 onChange={handleGalleryImageUpload}
-                maxFiles={Math.max(0, 10 - (formData.gallery_images?.length || 0))}
-                disabled={isDeleting || (formData.gallery_images?.length || 0) >= 10}
+                disabled={isDeleting}
                 folder="bloggallery"
                 multiple={true}
               />
               <p className="text-sm text-gray-500 mb-4">
-                Upload up to 10 images for the blog gallery ({formData.gallery_images?.length || 0}/10 uploaded)
+                Upload images for the blog gallery ({formData.gallery_images?.length || 0} uploaded)
               </p>
               
               {formData.gallery_images && formData.gallery_images.length > 0 && (
@@ -400,32 +437,34 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                           className="w-full h-full object-cover"
                         />
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all">
-                          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setPreviewImage(imageUrl);
-                              }}
-                              className="p-1 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
-                              type="button"
-                              aria-label={`View gallery image ${index + 1}`}
-                              title="View full size"
-                            >
-                              <RiZoomInLine size={16} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleGalleryImageDelete(index);
-                              }}
-                              className="p-1 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
-                              type="button"
-                              aria-label={`Delete gallery image ${index + 1}`}
-                              title={`Delete gallery image ${index + 1}`}
-                            >
-                              <RiCloseLine size={16} />
-                            </button>
-                          </div>
+                          {/* Center View Button */}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handlePreviewImage(imageUrl, index);
+                            }}
+                            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                            type="button"
+                            aria-label={`View gallery image ${index + 1}`}
+                            title="View full size"
+                          >
+                            <div className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all transform scale-0 group-hover:scale-100">
+                              <RiZoomInLine size={24} />
+                            </div>
+                          </button>
+                          {/* Top-right Delete Button */}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleGalleryImageDelete(index);
+                            }}
+                            className="absolute top-2 right-2 p-1.5 bg-white rounded-full text-red-600 opacity-0 group-hover:opacity-100 hover:bg-red-50 shadow-lg transition-all transform -translate-y-1 group-hover:translate-y-0"
+                            type="button"
+                            aria-label={`Delete gallery image ${index + 1}`}
+                            title={`Delete gallery image ${index + 1}`}
+                          >
+                            <RiCloseLine size={16} />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -499,25 +538,64 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
       {previewImage && (
         <div 
           className="fixed inset-0 z-50 bg-black bg-opacity-90"
-          onClick={() => setPreviewImage(null)}
+          onClick={() => {
+            setPreviewImage(null);
+            setPreviewImageIndex(-1);
+          }}
         >
+          {/* Close button */}
           <button
-            onClick={() => setPreviewImage(null)}
+            onClick={() => {
+              setPreviewImage(null);
+              setPreviewImageIndex(-1);
+            }}
             className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
             aria-label="Close preview"
             type="button"
           >
             <RiCloseLine className="w-8 h-8" />
           </button>
+
+          {/* Navigation buttons */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNavigatePreview('prev');
+            }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors"
+            aria-label="Previous image"
+            type="button"
+          >
+            <RiArrowLeftSLine className="w-8 h-8" />
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNavigatePreview('next');
+            }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors"
+            aria-label="Next image"
+            type="button"
+          >
+            <RiArrowRightSLine className="w-8 h-8" />
+          </button>
+
+          {/* Image container */}
           <div 
             className="w-full h-full flex items-center justify-center p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <img
               src={previewImage}
-              alt="Full size preview"
+              alt={`Gallery image ${previewImageIndex + 1}`}
               className="max-w-[90vw] max-h-[90vh] object-contain"
             />
+          </div>
+
+          {/* Image counter */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white">
+            {previewImageIndex + 1} / {formData.gallery_images?.length}
           </div>
         </div>
       )}
