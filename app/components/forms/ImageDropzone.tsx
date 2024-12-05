@@ -58,7 +58,6 @@ const ImagePreviewModal = ({ imageUrl, onClose }: ImagePreviewModalProps) => {
 interface ImageDropzoneProps {
   onChange: (files: Array<{ key: string; url: string }>) => void;
   value?: string | string[];
-  maxFiles?: number;
   onDelete?: (index?: number) => void;
   disabled?: boolean;
   folder?: string;
@@ -69,7 +68,6 @@ interface ImageDropzoneProps {
 export default function ImageDropzone({ 
   onChange, 
   value, 
-  maxFiles = 1,
   onDelete,
   disabled = false,
   folder = 'general',
@@ -85,13 +83,6 @@ export default function ImageDropzone({
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
-    if (acceptedFiles.length > maxFiles) {
-      setUploadStatus({
-        status: 'error',
-        message: `Maximum ${maxFiles} file${maxFiles === 1 ? '' : 's'} allowed`
-      });
-      return;
-    }
 
     setUploadStatus({ status: 'uploading' });
     setUploadProgress(0);
@@ -136,14 +127,13 @@ export default function ImageDropzone({
       });
       setUploadProgress(0);
     }
-  }, [onChange, maxFiles, folder]);
+  }, [onChange, folder]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png', '.gif']
     },
-    maxFiles,
     multiple: multiple,
     disabled: disabled || uploadStatus.status === 'uploading'
   });
@@ -226,11 +216,6 @@ export default function ImageDropzone({
               'Drag & drop an image here, or click to select'
             )}
           </p>
-          {maxFiles > 1 && (
-            <p className="text-xs text-gray-400 mt-1">
-              Maximum {maxFiles} files allowed
-            </p>
-          )}
         </div>
         {uploadStatus.status === 'uploading' && (
           <div className="mt-4">

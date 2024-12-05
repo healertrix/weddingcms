@@ -56,6 +56,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewImageIndex, setPreviewImageIndex] = useState<number>(-1);
   const [deleteImageIndex, setDeleteImageIndex] = useState<number | null>(null);
+  const [showUnsavedChangesWarning, setShowUnsavedChangesWarning] = useState(false);
 
   const isFormComplete = () => {
     const requiredFields = {
@@ -191,11 +192,12 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const handleClose = () => {
     const hasTitle = formData.title.trim() !== '';
     const hasImages = (formData.featuredImageUrl || (formData.gallery_images && formData.gallery_images.length > 0));
+    const isNewPost = !initialData;
 
-    if (hasImages && !hasTitle) {
+    if (hasImages && !hasTitle && isNewPost) {
       setShowTitleWarning(true);
-    } else if (hasImages) {
-      setShowImageDeleteWarning(true);
+    } else if (hasUnsavedChanges()) {
+      setShowUnsavedChangesWarning(true);
     } else {
       onClose();
     }
@@ -203,6 +205,15 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
   const handleCleanupAndClose = async () => {
     if (!formData.featuredImageUrl && (!formData.gallery_images || formData.gallery_images.length === 0)) {
+      onClose();
+      return;
+    }
+
+    // Only delete images if this is a new post without a title
+    const isNewPost = !initialData;
+    const hasTitle = formData.title.trim() !== '';
+    
+    if (!isNewPost || hasTitle) {
       onClose();
       return;
     }
@@ -567,7 +578,6 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                 disabled={isDeleting}
                 folder="bloggallery"
                 multiple={true}
-                maxFiles={10}
                 hidePreview={true}
               />
               <p className="text-sm text-gray-500 mb-4">
@@ -944,11 +954,25 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             }
           }}
           confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
-            isDeleting ? 'opacity-50 cursor-not-allowed bg-red-400' : ''
+            isDeleting ? 'opacity-50 cursor-not-allowed' : ''
           }`}
           disabled={isDeleting}
           showCancelButton={!isDeleting}
           allowBackgroundCancel={!isDeleting}
+        />
+      )}
+
+      {showUnsavedChangesWarning && (
+        <ConfirmModal
+          title="Unsaved Changes"
+          message="You have unsaved changes. Are you sure you want to close?"
+          confirmLabel="Close Without Saving"
+          onConfirm={() => {
+            setShowUnsavedChangesWarning(false);
+            onClose();
+          }}
+          onCancel={() => setShowUnsavedChangesWarning(false)}
+          confirmButtonClassName="bg-red-600 hover:bg-red-700 text-white"
         />
       )}
 
