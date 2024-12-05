@@ -107,6 +107,7 @@ export default function BlogPage() {
     if (!post.wedding_date?.trim()) missingFields.push('Wedding Date');
     if (!post.location?.trim()) missingFields.push('Location');
     if (!post.featured_image_key) missingFields.push('Featured Image');
+    if (!post.gallery_images || post.gallery_images.length === 0) missingFields.push('Gallery Images');
 
     post.missingFields = missingFields;
     return missingFields.length === 0;
@@ -161,9 +162,8 @@ export default function BlogPage() {
         });
       }, 100);
 
-      // Delete featured image if it exists
       if (deletingPost.featured_image_key) {
-        setDeleteProgress(20);
+        setDeleteProgress(30);
         const imageResponse = await fetch('/api/upload/delete', {
           method: 'POST',
           headers: {
@@ -173,31 +173,11 @@ export default function BlogPage() {
         });
 
         if (!imageResponse.ok) {
-          throw new Error('Failed to delete featured image from storage');
+          throw new Error('Failed to delete image from storage');
         }
+        setDeleteProgress(60);
       }
 
-      // Delete all gallery images if they exist
-      if (deletingPost.gallery_images && deletingPost.gallery_images.length > 0) {
-        setDeleteProgress(40);
-        for (const imageUrl of deletingPost.gallery_images) {
-          const galleryImageResponse = await fetch('/api/upload/delete', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ imageKey: imageUrl }),
-          });
-
-          if (!galleryImageResponse.ok) {
-            throw new Error('Failed to delete gallery image from storage');
-          }
-        }
-      }
-
-      setDeleteProgress(70);
-
-      // Delete the blog post from the database
       const { error: deleteError } = await supabase
         .from('blog_posts')
         .delete()
@@ -608,11 +588,11 @@ export default function BlogPage() {
           message={
             <div className="space-y-4">
               <p className="text-gray-600">The following fields are required before publishing:</p>
-              <ul className="list-disc list-inside space-y-2 text-red-600">
+              <ul className="list-disc list-inside space-y-2">
                 {selectedPost.missingFields?.map((field, index) => (
-                  <li key={index} className="flex items-center gap-2">
-                    <RiErrorWarningLine className="flex-shrink-0" />
-                    {field}
+                  <li key={index} className="flex items-center gap-2 text-red-600">
+                    <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                    <span>{field}</span>
                   </li>
                 ))}
               </ul>

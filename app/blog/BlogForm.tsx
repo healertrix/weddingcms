@@ -48,6 +48,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showTitleWarning, setShowTitleWarning] = useState(false);
+  const [showImageDeleteWarning, setShowImageDeleteWarning] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState(0);
   const [initialFormData] = useState(formData);
@@ -188,10 +189,85 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   };
 
   const handleClose = () => {
-    if (hasUnsavedChanges()) {
-      setShowCloseConfirm(true);
+    const hasTitle = formData.title.trim() !== '';
+    const hasImages = (formData.featuredImageUrl || (formData.gallery_images && formData.gallery_images.length > 0));
+
+    if (hasImages && !hasTitle) {
+      setShowTitleWarning(true);
+    } else if (hasImages) {
+      setShowImageDeleteWarning(true);
     } else {
       onClose();
+    }
+  };
+
+  const handleCleanupAndClose = async () => {
+    if (!formData.featuredImageUrl && (!formData.gallery_images || formData.gallery_images.length === 0)) {
+      onClose();
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteProgress(0);
+
+    try {
+      const progressInterval = setInterval(() => {
+        setDeleteProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
+      // Delete featured image if exists
+      if (formData.featuredImageUrl) {
+        setDeleteProgress(20);
+        const featuredResponse = await fetch('/api/upload/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageKey: formData.featuredImageUrl }),
+        });
+
+        if (!featuredResponse.ok) {
+          throw new Error('Failed to delete featured image');
+        }
+      }
+
+      // Delete gallery images if exist
+      if (formData.gallery_images && formData.gallery_images.length > 0) {
+        setDeleteProgress(40);
+        for (const imageUrl of formData.gallery_images) {
+          const galleryResponse = await fetch('/api/upload/delete', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ imageKey: imageUrl }),
+          });
+
+          if (!galleryResponse.ok) {
+            throw new Error('Failed to delete gallery image');
+          }
+        }
+      }
+
+      setDeleteProgress(100);
+      
+      setTimeout(() => {
+        setIsDeleting(false);
+        setDeleteProgress(0);
+        setShowImageDeleteWarning(false);
+        onClose();
+      }, 500);
+
+    } catch (error) {
+      console.error('Error cleaning up images:', error);
+      setIsDeleting(false);
+      setDeleteProgress(0);
     }
   };
 
@@ -483,7 +559,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             </div>
           </FormField>
 
-          <FormField label="Gallery Images">
+          <FormField label="Gallery Images" required>
             <div className="space-y-4">
               <ImageDropzone
                 onChange={handleGalleryImageUpload}
@@ -800,43 +876,76 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
         />
       )}
 
-      {showCloseConfirm && (
-        <ConfirmModal
-          title="Unsaved Changes"
-          message="You have unsaved changes. What would you like to do?"
-          confirmLabel="Save Changes"
-          onConfirm={(e) => {
-            setShowCloseConfirm(false);
-            handleSubmit(e as any, true);
-          }}
-          onCancel={() => {
-            setShowCloseConfirm(false);
-            onClose();
-          }}
-          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
-          showCloseButton={true}
-          onCloseButtonClick={() => setShowCloseConfirm(false)}
-        />
-      )}
-
       {showTitleWarning && (
         <ConfirmModal
           title="Title Required"
           message={
             <div className="space-y-4">
-              <p className="text-gray-600">Title is required even when saving as a draft.</p>
+              <p className="text-gray-600">A title is required to save your blog post.</p>
               <div className="bg-yellow-50 p-4 rounded-lg">
                 <div className="flex items-center gap-2 text-yellow-800">
-                  <RiErrorWarningLine className="flex-shrink-0" />
-                  <p>Please enter a title before saving.</p>
+                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                  <p>If you close without adding a title, all uploaded images will be deleted.</p>
                 </div>
               </div>
             </div>
           }
-          confirmLabel="OK"
+          confirmLabel="Add Title"
           onConfirm={() => setShowTitleWarning(false)}
-          onCancel={() => setShowTitleWarning(false)}
+          onCancel={() => {
+            setShowTitleWarning(false);
+            setShowImageDeleteWarning(true);
+          }}
           confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+        />
+      )}
+
+      {showImageDeleteWarning && (
+        <ConfirmModal
+          title="⚠️ Delete Uploaded Images"
+          message={
+            <div className="space-y-4">
+              <div className="space-y-4">
+                <p>Are you sure you want to close without saving?</p>
+                <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                  <div className="font-medium text-red-800">This will permanently delete:</div>
+                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                    {formData.featuredImageUrl && <li>The featured image</li>}
+                    {formData.gallery_images && formData.gallery_images.length > 0 && (
+                      <li>All uploaded gallery images ({formData.gallery_images.length} images)</li>
+                    )}
+                  </ul>
+                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                </div>
+              </div>
+              {isDeleting && (
+                <div className="mt-4">
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                      style={{ width: `${deleteProgress}%` }}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2 text-center">
+                    Deleting images... {deleteProgress}%
+                  </div>
+                </div>
+              )}
+            </div>
+          }
+          confirmLabel={isDeleting ? "Deleting..." : "Delete and Close"}
+          onConfirm={handleCleanupAndClose}
+          onCancel={() => {
+            if (!isDeleting) {
+              setShowImageDeleteWarning(false);
+            }
+          }}
+          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
+            isDeleting ? 'opacity-50 cursor-not-allowed bg-red-400' : ''
+          }`}
+          disabled={isDeleting}
+          showCancelButton={!isDeleting}
+          allowBackgroundCancel={!isDeleting}
         />
       )}
 
