@@ -28,6 +28,7 @@ export interface BlogFormData {
   location: string;
   isFeaturedHome: boolean;
   isFeaturedBlog: boolean;
+  gallery_images: string[];
 }
 
 export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData }: BlogFormProps) {
@@ -40,7 +41,8 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     weddingDate: '',
     location: '',
     isFeaturedHome: false,
-    isFeaturedBlog: false
+    isFeaturedBlog: false,
+    gallery_images: ['asdasdasd']
   });
   const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -100,6 +102,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
         location: formData.location || null,
         is_featured_home: formData.isFeaturedHome,
         is_featured_blog: formData.isFeaturedBlog,
+        gallery_images: formData.gallery_images,
         status: saveAsDraft ? 'draft' : 'published'
       };
 

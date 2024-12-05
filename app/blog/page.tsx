@@ -211,6 +211,7 @@ export default function BlogPage() {
         location: data.location || null,
         is_featured_home: data.isFeaturedHome,
         is_featured_blog: data.isFeaturedBlog,
+        gallery_images: data.gallery_images,
         status: saveAsDraft ? 'draft' : 'published'
       };
 
