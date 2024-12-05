@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine, RiCloseLine, RiErrorWarningLine, RiZoomInLine, RiArrowLeftSLine, RiArrowRightSLine } from 'react-icons/ri';
+import { RiSaveLine, RiCloseLine, RiErrorWarningLine, RiZoomInLine, RiArrowLeftSLine, RiArrowRightSLine, RiDragMove2Line } from 'react-icons/ri';
 import ImageDropzone from '../components/forms/ImageDropzone';
 import FormModal from '../components/forms/FormModal';
 import TextEditor from '../components/forms/TextEditor';
@@ -53,6 +54,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const [showIncompleteWarning, setShowIncompleteWarning] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewImageIndex, setPreviewImageIndex] = useState<number>(-1);
+  const [deleteImageIndex, setDeleteImageIndex] = useState<number | null>(null);
 
   const isFormComplete = () => {
     const requiredFields = {
@@ -269,6 +271,43 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [previewImage, previewImageIndex, formData.gallery_images]);
 
+  const handleDragEnd = (result: any) => {
+    const { destination, source } = result;
+
+    if (!destination) return;
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const newItems = Array.from(formData.gallery_images);
+    const [removed] = newItems.splice(source.index, 1);
+    newItems.splice(destination.index, 0, removed);
+
+    setFormData(prevData => ({
+      ...prevData,
+      gallery_images: newItems
+    }));
+  };
+
+  const handleImageDeleteClick = (index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeleteImageIndex(index);
+    setShowDeleteImageConfirm(true);
+  };
+
+  const confirmImageDelete = () => {
+    if (deleteImageIndex !== null) {
+      handleGalleryImageDelete(deleteImageIndex);
+      setShowDeleteImageConfirm(false);
+      setDeleteImageIndex(null);
+    }
+  };
+
   // Continue with the existing return statement, but add the modals at the end
   return (
     <>
@@ -427,48 +466,128 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
               
               {formData.gallery_images && formData.gallery_images.length > 0 && (
                 <div className="border-t pt-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-4">Gallery Preview</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {formData.gallery_images.map((imageUrl, index) => (
-                      <div key={`${imageUrl}-${index}`} className="relative aspect-video rounded-lg overflow-hidden group">
-                        <img
-                          src={imageUrl}
-                          alt={`Gallery image ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all">
-                          {/* Center View Button */}
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handlePreviewImage(imageUrl, index);
-                            }}
-                            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                            type="button"
-                            aria-label={`View gallery image ${index + 1}`}
-                            title="View full size"
-                          >
-                            <div className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all transform scale-0 group-hover:scale-100">
-                              <RiZoomInLine size={24} />
+                  <h4 className="text-sm font-medium text-gray-900 mb-4">
+                    Gallery Preview (Drag images to reorder)
+                  </h4>
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable
+                      droppableId="gallery"
+                      direction="horizontal"
+                      renderClone={(provided, snapshot, rubric) => (
+                        <div
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          ref={provided.innerRef}
+                          className="relative aspect-video rounded-lg overflow-hidden shadow-2xl"
+                          style={{
+                            ...provided.draggableProps.style,
+                            width: '250px',
+                            height: '140px',
+                          }}
+                        >
+                          <img
+                            src={formData.gallery_images[rubric.source.index]}
+                            alt={`Gallery image ${rubric.source.index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-30">
+                            <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm">
+                              {rubric.source.index + 1}
                             </div>
-                          </button>
-                          {/* Top-right Delete Button */}
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleGalleryImageDelete(index);
-                            }}
-                            className="absolute top-2 right-2 p-1.5 bg-white rounded-full text-red-600 opacity-0 group-hover:opacity-100 hover:bg-red-50 shadow-lg transition-all transform -translate-y-1 group-hover:translate-y-0"
-                            type="button"
-                            aria-label={`Delete gallery image ${index + 1}`}
-                            title={`Delete gallery image ${index + 1}`}
-                          >
-                            <RiCloseLine size={16} />
-                          </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      )}
+                    >
+                      {(provided) => (
+                        <div 
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className="flex items-start gap-6 overflow-x-auto pb-4 min-h-[160px]"
+                        >
+                          {formData.gallery_images.map((imageUrl, index) => (
+                            <Draggable 
+                              key={`${imageUrl}-${index}`} 
+                              draggableId={`${imageUrl}-${index}`} 
+                              index={index}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  style={{
+                                    ...provided.draggableProps.style,
+                                    width: '250px',
+                                    height: snapshot.isDragging ? '140px' : 'auto',
+                                  }}
+                                  className={`
+                                    relative aspect-video rounded-lg overflow-hidden group flex-shrink-0
+                                    ${snapshot.isDragging ? 'opacity-0' : 'opacity-100'}
+                                    hover:ring-2 hover:ring-[#8B4513] transition-all
+                                  `}
+                                >
+                                  {/* Image number */}
+                                  <div className="absolute top-2 left-2 z-30 bg-black bg-opacity-75 text-white px-2 py-1 rounded-full text-sm font-medium">
+                                    {index + 1}
+                                  </div>
+
+                                  {/* Drag handle overlay - centered */}
+                                  <div
+                                    {...provided.dragHandleProps}
+                                    className="absolute inset-0 z-20 cursor-move flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                  >
+                                    <div className="bg-black bg-opacity-50 rounded-lg p-3 transform scale-75 group-hover:scale-100 transition-all duration-200">
+                                      <RiDragMove2Line className="w-8 h-8 text-white" />
+                                    </div>
+                                  </div>
+
+                                  <img
+                                    src={imageUrl}
+                                    alt={`Gallery image ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+
+                                  {/* Controls overlay */}
+                                  <div 
+                                    className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all"
+                                  >
+                                    {/* Control buttons container */}
+                                    <div className="absolute top-2 right-2 flex items-center gap-2 z-30">
+                                      {/* Preview button */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handlePreviewImage(imageUrl, index);
+                                        }}
+                                        className="p-1 bg-white rounded-full text-gray-600 opacity-0 group-hover:opacity-100 hover:bg-gray-100 shadow-lg transition-all"
+                                        type="button"
+                                        aria-label={`Preview gallery image ${index + 1}`}
+                                        title="Preview image"
+                                      >
+                                        <RiZoomInLine size={14} />
+                                      </button>
+
+                                      {/* Delete button */}
+                                      <button
+                                        onClick={(e) => handleImageDeleteClick(index, e)}
+                                        className="p-1 bg-white rounded-full text-red-600 opacity-0 group-hover:opacity-100 hover:bg-red-50 shadow-lg transition-all"
+                                        type="button"
+                                        aria-label={`Delete gallery image ${index + 1}`}
+                                        title="Delete image"
+                                      >
+                                        <RiCloseLine size={14} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
                 </div>
               )}
             </div>
@@ -592,7 +711,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
               className="max-w-[90vw] max-h-[85vh] object-contain"
             />
             <div className="text-white text-sm font-medium bg-black bg-opacity-75 px-4 py-1.5 rounded-full">
-              {previewImageIndex + 1} / {formData.gallery_images?.length}
+              Image {previewImageIndex + 1} of {formData.gallery_images?.length}
             </div>
           </div>
         </div>
@@ -600,50 +719,27 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
       {showDeleteImageConfirm && (
         <ConfirmModal
-          title="⚠️ Delete Image Permanently"
+          title="Delete Gallery Image"
           message={
             <div className="space-y-4">
-              <div className="space-y-4">
-                <p>Are you sure you want to delete this image?</p>
-                <div className="bg-red-50 p-4 rounded-lg space-y-2">
-                  <div className="font-medium text-red-800">This will permanently delete:</div>
-                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
-                    <li>The featured image</li>
-                    <li>The image from storage</li>
-                  </ul>
-                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
-                </div>
+              <p>Are you sure you want to delete this image from the gallery?</p>
+              <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                <div className="font-medium text-red-800">Warning:</div>
+                <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                  <li>This will permanently delete the image</li>
+                  <li>This action cannot be undone</li>
+                  <li>The image will be removed from storage</li>
+                </ul>
               </div>
-              {isDeleting && (
-                <div className="mt-4">
-                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-red-600 transition-all duration-300 ease-out"
-                      style={{ width: `${deleteProgress}%` }}
-                    />
-                  </div>
-                  <div className="text-sm text-gray-500 mt-2 text-center">
-                    Deleting image... {deleteProgress}%
-                  </div>
-                </div>
-              )}
             </div>
           }
-          confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
-          onConfirm={(e) => {
-            if (!isDeleting) {
-              handleImageDelete();
-            }
-          }}
+          confirmLabel="Delete Image"
+          onConfirm={confirmImageDelete}
           onCancel={() => {
             setShowDeleteImageConfirm(false);
+            setDeleteImageIndex(null);
           }}
-          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
-            isDeleting ? 'opacity-50 cursor-not-allowed bg-red-400' : ''
-          }`}
-          disabled={isDeleting}
-          showCancelButton={!isDeleting}
-          allowBackgroundCancel={!isDeleting}
+          confirmButtonClassName="bg-red-600 hover:bg-red-700 text-white"
         />
       )}
 
