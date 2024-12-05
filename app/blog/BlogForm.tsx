@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
@@ -33,6 +33,7 @@ export interface BlogFormData {
 }
 
 export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData }: BlogFormProps) {
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<BlogFormData>({
     title: initialData?.title || '',
     slug: initialData?.slug || '',
@@ -436,6 +437,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <FormField label="Title" required>
             <Input
+              ref={titleInputRef}
               required
               value={formData.title}
               onChange={(e) => {
@@ -847,7 +849,11 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                 <div className="bg-red-50 p-4 rounded-lg space-y-2">
                   <div className="font-medium text-red-800">This will permanently delete:</div>
                   <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
-                    <li>The gallery image</li>
+                    {deleteImageIndex === null ? (
+                      <li>The featured image</li>
+                    ) : (
+                      <li>The gallery image</li>
+                    )}
                     <li>The image from storage</li>
                   </ul>
                   <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
@@ -870,8 +876,12 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
           }
           confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
           onConfirm={() => {
-            if (!isDeleting && deleteImageIndex !== null) {
-              handleGalleryImageDelete(deleteImageIndex);
+            if (!isDeleting) {
+              if (deleteImageIndex !== null) {
+                handleGalleryImageDelete(deleteImageIndex);
+              } else {
+                handleImageDelete();
+              }
             }
           }}
           onCancel={() => {
@@ -881,7 +891,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             }
           }}
           confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
-            isDeleting ? 'opacity-50 cursor-not-allowed bg-red-400' : ''
+            isDeleting ? 'opacity-50 cursor-not-allowed' : ''
           }`}
           disabled={isDeleting}
           showCancelButton={!isDeleting}
@@ -904,7 +914,13 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             </div>
           }
           confirmLabel="Add Title"
-          onConfirm={() => setShowTitleWarning(false)}
+          onConfirm={() => {
+            setShowTitleWarning(false);
+            // Focus the title input after modal closes
+            setTimeout(() => {
+              titleInputRef.current?.focus();
+            }, 100);
+          }}
           onCancel={() => {
             setShowTitleWarning(false);
             setShowImageDeleteWarning(true);
