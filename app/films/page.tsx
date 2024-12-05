@@ -526,7 +526,7 @@ export default function FilmsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-full max-w-4xl aspect-video">
-              <VideoPreview url={previewVideo} />
+              <VideoPreview url={previewVideo} autoPlay={true} />
             </div>
           </div>
         </div>
@@ -535,16 +535,16 @@ export default function FilmsPage() {
   );
 }
 
-function VideoPreview({ url }: { url: string }) {
+function VideoPreview({ url, autoPlay = false }: { url: string; autoPlay?: boolean }) {
   const videoInfo = getVideoId(url);
   
   if (!videoInfo) return null;
 
   let embedUrl = '';
   if (videoInfo.type === 'youtube') {
-    embedUrl = `https://www.youtube.com/embed/${videoInfo.id}`;
+    embedUrl = `https://www.youtube.com/embed/${videoInfo.id}${autoPlay ? '?autoplay=1' : ''}`;
   } else if (videoInfo.type === 'vimeo') {
-    embedUrl = `https://player.vimeo.com/video/${videoInfo.id}`;
+    embedUrl = `https://player.vimeo.com/video/${videoInfo.id}${autoPlay ? '?autoplay=1' : ''}`;
   }
 
   return (
