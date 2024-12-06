@@ -93,8 +93,8 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
       return;
     }
 
-    // First check if we can save as draft
-    if (saveAsDraft && !formData.coupleNames.trim()) {
+    // Check for couple names first
+    if (!formData.coupleNames.trim()) {
       setShowCoupleNamesWarning(true);
       return;
     }
@@ -285,19 +285,13 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
       return;
     }
 
-    const hasCoupleNames = formData.coupleNames.trim() !== '';
     const hasImages = (formData.featuredImageKey || (formData.gallery_images && formData.gallery_images.length > 0));
     const isNewPost = !initialData;
 
-    if (hasImages && !hasCoupleNames && isNewPost) {
-      // If there are images but no couple names, warn about image deletion
+    if (hasImages && !formData.coupleNames.trim() && isNewPost) {
       setShowCoupleNamesWarning(true);
     } else if (hasUnsavedChanges()) {
-      // If there are unsaved changes in non-media fields, show warning
       setShowUnsavedChangesWarning(true);
-    } else if (hasImages) {
-      // If there are only image changes, save them automatically
-      handleSubmit(new Event('submit') as any, true);
     } else {
       onClose();
     }
@@ -447,7 +441,9 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
     <>
       <FormModal
         title={initialData ? 'Edit Wedding' : 'Add Wedding'}
-        onClose={handleClose}
+        onClose={() => handleSubmit(new Event('submit') as any, true)}
+        closeButtonLabel="Save as Draft"
+        icon={RiSaveLine}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <FormField label="Couple Names" required>
@@ -728,13 +724,6 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
               Save as Draft
             </Button>
             <Button 
-              variant="secondary" 
-              onClick={handleClose}
-              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-            >
-              Cancel
-            </Button>
-            <Button 
               type="submit" 
               icon={RiSaveLine}
               disabled={!isFormComplete()}
@@ -834,28 +823,27 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
             title="Couple Names Required"
             message={
               <div className="space-y-4">
-                <p className="text-gray-600">A couple names is required to save your wedding.</p>
+                <p className="text-gray-600">Couple names are required even when saving as a draft.</p>
                 <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 text-yellow-800">
+                  <div className="flex items-center gap-2 text-[#8B4513]">
                     <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
-                    <p>If you close without adding couple names, all uploaded images will be deleted.</p>
+                    <p>Please enter the couple names before saving.</p>
                   </div>
                 </div>
               </div>
             }
-            confirmLabel="Add Couple Names"
+            confirmLabel="OK"
             onConfirm={() => {
               setShowCoupleNamesWarning(false);
-              // Focus the title input after modal closes
               setTimeout(() => {
                 coupleNamesInputRef.current?.focus();
               }, 100);
             }}
-            onCancel={() => {
-              setShowCoupleNamesWarning(false);
-              setShowImageDeleteWarning(true);
-            }}
+            onCancel={() => setShowCoupleNamesWarning(false)}
             confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+            showCancelButton={false}
+            showCloseButton={false}
+            allowBackgroundCancel={false}
           />
         )}
 
