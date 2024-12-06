@@ -60,6 +60,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const [deleteImageIndex, setDeleteImageIndex] = useState<number | null>(null);
   const [showUnsavedChangesWarning, setShowUnsavedChangesWarning] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showUploadingWarning, setShowUploadingWarning] = useState(false);
 
   const isFormComplete = () => {
     const requiredFields = {
@@ -446,7 +447,8 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
         title={initialData ? 'Edit Blog Post' : 'Add Blog Post'}
         onClose={() => {
           if (isUploading) {
-            return; // Prevent closing during upload
+            setShowUploadingWarning(true);
+            return;
           }
           if (hasAnyData()) {
             handleSubmit(new Event('submit') as any, true);
@@ -562,7 +564,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                             handleDeleteClick();
                           }}
                           className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
-                          disabled={isDeleting}
+                          disabled={isDeleting || isUploading}
                           aria-label="Delete image"
                           title="Delete image"
                           type="button"
@@ -578,7 +580,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                   onChange={handleFeaturedImageUpload}
                   maxFiles={1}
                   onDelete={handleDeleteClick}
-                  disabled={isDeleting}
+                  disabled={isDeleting || isUploading}
                   folder="blogposts"
                   multiple={false}
                   onUploadStatusChange={(status) => {
@@ -607,7 +609,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
               <ImageDropzone
                 onChange={handleGalleryImageUpload}
                 value={formData.gallery_images}
-                disabled={isDeleting}
+                disabled={isDeleting || isUploading}
                 folder="bloggallery"
                 multiple={true}
                 hidePreview={true}
@@ -766,6 +768,10 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                   variant="secondary" 
                   onClick={(e) => {
                     e.preventDefault();
+                    if (isUploading) {
+                      setShowUploadingWarning(true);
+                      return;
+                    }
                     handleSubmit(e, true);
                   }}
                   className={`bg-gray-50 text-gray-600 hover:bg-gray-100 ${
@@ -782,6 +788,10 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                   disabled={!isFormComplete() || isUploading}
                   onClick={(e) => {
                     e.preventDefault();
+                    if (isUploading) {
+                      setShowUploadingWarning(true);
+                      return;
+                    }
                     if (!isFormComplete()) {
                       setShowIncompleteWarning(true);
                       return;
@@ -1074,6 +1084,28 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
           onConfirm={() => setShowIncompleteWarning(false)}
           onCancel={() => setShowIncompleteWarning(false)}
           confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+        />
+      )}
+
+      {showUploadingWarning && (
+        <ConfirmModal
+          title="Upload in Progress"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">Please wait for the image upload to complete before proceeding.</p>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                  <p>Images are still being uploaded. Please wait for the upload to finish.</p>
+                </div>
+              </div>
+            </div>
+          }
+          confirmLabel="OK"
+          onConfirm={() => setShowUploadingWarning(false)}
+          onCancel={() => setShowUploadingWarning(false)}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          showCancelButton={false}
         />
       )}
     </>
