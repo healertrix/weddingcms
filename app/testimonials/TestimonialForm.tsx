@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine, RiPlayLine, RiCloseLine, RiErrorWarningLine } from 'react-icons/ri';
+import { RiSaveLine, RiPlayLine, RiCloseLine, RiErrorWarningLine, RiZoomInLine } from 'react-icons/ri';
 import ImageDropzone from '../components/forms/ImageDropzone';
 import FormModal from '../components/forms/FormModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -18,7 +18,7 @@ type TestimonialFormProps = {
 
 export type TestimonialFormData = {
   coupleNames: string;
-  weddingDate: string;
+  weddingDate: string | null;
   location: string;
   review: string;
   imageKey?: string;
@@ -71,7 +71,7 @@ function VideoPreview({ url }: { url: string }) {
 export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, initialData }: TestimonialFormProps) {
   const [formData, setFormData] = useState<TestimonialFormData>(initialData || {
     coupleNames: '',
-    weddingDate: '',
+    weddingDate: null,
     location: '',
     review: '',
     imageKey: '',
@@ -85,6 +85,23 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   const [deleteProgress, setDeleteProgress] = useState(0);
   const [isValidVideo, setIsValidVideo] = useState(false);
   const [initialFormData] = useState(formData);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && previewImage) {
+        setPreviewImage(null);
+      }
+    };
+
+    if (previewImage) {
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [previewImage]);
 
   useEffect(() => {
     if (formData.videoUrl) {
@@ -97,10 +114,10 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
 
   const isFormComplete = () => {
     return (
-      formData.coupleNames.trim() !== '' &&
-      formData.weddingDate.trim() !== '' &&
-      formData.location.trim() !== '' &&
-      formData.review.trim() !== '' &&
+      formData.coupleNames?.trim() !== '' &&
+      formData.weddingDate?.trim() !== '' &&
+      formData.location?.trim() !== '' &&
+      formData.review?.trim() !== '' &&
       formData.videoUrl?.trim() !== ''
     );
   };
@@ -108,14 +125,14 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   const handleSubmit = async (e: React.FormEvent, saveAsDraft: boolean) => {
     e.preventDefault();
 
-    if (saveAsDraft && !formData.coupleNames.trim()) {
+    if (saveAsDraft && !formData.coupleNames?.trim()) {
       setShowCoupleNamesWarning(true);
       return;
     }
 
     const submissionData = {
       ...formData,
-      weddingDate: formData.weddingDate.trim() || null
+      weddingDate: formData.weddingDate?.trim() || null
     };
 
     if (saveAsDraft) {
@@ -259,25 +276,54 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
           <div className="grid grid-cols-2 gap-6">
             <div>
               <FormField label="Photo">
-                <ImageDropzone
-                  onChange={handleImageUpload}
-                  value={formData.imageUrl}
-                  maxFiles={1}
-                  onDelete={handleDeleteClick}
-                  disabled={isDeleting}
-                />
-                {isDeleting && (
-                  <div className="mt-2">
-                    <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-red-600 transition-all duration-300 ease-out"
-                        style={{ width: `${deleteProgress}%` }}
-                      />
+                {formData.imageUrl ? (
+                  <div className="relative aspect-video rounded-lg overflow-hidden group">
+                    <img
+                      src={formData.imageUrl}
+                      alt="Testimonial photo"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setPreviewImage(formData.imageUrl || null);
+                          }}
+                          className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
+                          aria-label="View full size"
+                          title="View full size"
+                          type="button"
+                        >
+                          <RiZoomInLine size={20} />
+                        </button>
+                        {!isDeleting && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleDeleteClick();
+                            }}
+                            className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
+                            disabled={isDeleting}
+                            aria-label="Delete image"
+                            title="Delete image"
+                            type="button"
+                          >
+                            <RiCloseLine size={20} />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Deleting image... {deleteProgress}%
-                    </p>
                   </div>
+                ) : (
+                  <ImageDropzone
+                    onChange={handleImageUpload}
+                    value={formData.imageUrl}
+                    maxFiles={1}
+                    onDelete={handleDeleteClick}
+                    disabled={isDeleting}
+                    folder="testimonial"
+                  />
                 )}
               </FormField>
             </div>
@@ -367,14 +413,76 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
         </form>
       </FormModal>
 
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-90"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
+            aria-label="Close preview"
+            type="button"
+          >
+            <RiCloseLine className="w-8 h-8" />
+          </button>
+          <div 
+            className="w-full h-full flex items-center justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewImage}
+              alt="Full size preview"
+              className="max-w-[90vw] max-h-[85vh] object-contain"
+            />
+          </div>
+        </div>
+      )}
+
       {showDeleteImageConfirm && (
         <ConfirmModal
           title="⚠️ Delete Image Permanently"
-          message={`WARNING: You are about to permanently delete this image!\n\nThis action:\n• Cannot be undone\n• Will permanently remove the image\n• Will delete the image from the testimonial\n\nAre you absolutely sure you want to proceed?`}
-          confirmLabel="Yes, Delete Image Permanently"
+          message={
+            <div className="space-y-4">
+              <div className="space-y-4">
+                <p>Are you sure you want to delete this image?</p>
+                <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                  <div className="font-medium text-red-800">This will permanently delete:</div>
+                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                    <li>The testimonial photo</li>
+                    <li>The image from storage</li>
+                  </ul>
+                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                </div>
+              </div>
+              {isDeleting && (
+                <div className="mt-4">
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                      style={{ width: `${deleteProgress}%` }}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2 text-center">
+                    Deleting image... {deleteProgress}%
+                  </div>
+                </div>
+              )}
+            </div>
+          }
+          confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
           onConfirm={handleImageDelete}
-          onCancel={() => setShowDeleteImageConfirm(false)}
-          confirmButtonClassName="bg-red-600 hover:bg-red-700 text-white"
+          onCancel={() => {
+            if (!isDeleting) {
+              setShowDeleteImageConfirm(false);
+            }
+          }}
+          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
+            isDeleting ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          disabled={isDeleting}
+          showCancelButton={!isDeleting}
+          allowBackgroundCancel={!isDeleting}
         />
       )}
 
