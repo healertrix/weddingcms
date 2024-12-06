@@ -11,6 +11,7 @@ import FormModal from '../components/forms/FormModal';
 import TextEditor from '../components/forms/TextEditor';
 import { Switch } from '../components/forms/Switch';
 import ConfirmModal from '../components/ConfirmModal';
+import Image from 'next/image';
 
 type WeddingFormProps = {
   onClose: () => void;
@@ -475,10 +476,13 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
             <div className="space-y-2">
               {formData.featuredImageKey ? (
                 <div className="relative aspect-video rounded-lg overflow-hidden group">
-                  <img
+                  <Image
                     src={formData.featuredImageKey}
                     alt="Featured image"
-                    className="w-full h-full object-cover"
+                    className="object-cover"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    priority
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
@@ -573,10 +577,12 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                             height: '180px',
                           }}
                         >
-                          <img
+                          <Image
                             src={formData.gallery_images[rubric.source.index]}
                             alt={`Gallery image ${rubric.source.index + 1}`}
                             className="w-full h-full object-cover"
+                            fill
+                            sizes="300px"
                           />
                           <div className="absolute inset-0 bg-black bg-opacity-30">
                             <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm">
@@ -628,10 +634,12 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                                     </div>
                                   </div>
 
-                                  <img
+                                  <Image
                                     src={imageUrl}
                                     alt={`Gallery image ${index + 1}`}
                                     className="w-full h-full object-cover"
+                                    fill
+                                    sizes="300px"
                                   />
 
                                   {/* Controls overlay */}
@@ -981,10 +989,13 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
               className="w-full h-full flex flex-col items-center justify-center gap-4 p-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <img
+              <Image
                 src={previewImage}
                 alt={`Gallery image ${previewImageIndex + 1}`}
                 className="max-w-[90vw] max-h-[85vh] object-contain"
+                width={1920}
+                height={1080}
+                priority
               />
               <div className="text-white text-sm font-medium bg-black bg-opacity-75 px-4 py-1.5 rounded-full">
                 Image {previewImageIndex + 1} of {formData.gallery_images?.length}

@@ -10,6 +10,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '../types/supabase';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface Wedding {
   id: string;
@@ -272,10 +273,12 @@ export default function WeddingsPage() {
               >
                 {wedding.featured_image_key && (
                   <div className="flex-shrink-0 w-full md:w-64 h-64 md:h-48 relative rounded-lg overflow-hidden group">
-                    <img
+                    <Image
                       src={wedding.featured_image_key}
                       alt={`${wedding.couple_names}'s wedding`}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 256px"
                     />
                     <div 
                       className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center cursor-pointer"
@@ -381,15 +384,13 @@ export default function WeddingsPage() {
             className="w-full h-full flex items-center justify-center p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
+            <Image
               src={previewImage}
               alt="Full size preview"
-              className="w-full h-full object-contain"
-              style={{
-                maxWidth: '100vw',
-                maxHeight: '100vh',
-                objectFit: 'contain'
-              }}
+              className="object-contain"
+              fill
+              sizes="100vw"
+              priority
             />
           </div>
         </div>

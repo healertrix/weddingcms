@@ -10,12 +10,20 @@ const nextConfig: NextConfig = {
     return config;
   },
   images: {
-    domains: [
-      'localhost', 
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', '') || '',
-      'weddingtheory.blr1.digitaloceanspaces.com',
-      'images.unsplash.com'
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'weddingtheory.blr1.digitaloceanspaces.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      }
     ],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   }
 };
 
