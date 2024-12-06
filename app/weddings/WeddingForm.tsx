@@ -130,24 +130,20 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
   };
 
   const handleFeaturedImageUpload = (files: Array<{ key: string; url: string }>) => {
-    setIsUploading(true);
     if (files.length > 0) {
       setFormData({
         ...formData,
         featuredImageKey: files[0].url
       });
     }
-    setIsUploading(false);
   };
 
   const handleGalleryImagesUpload = (files: Array<{ key: string; url: string }>) => {
-    setIsUploading(true);
     const newUrls = files.map(file => file.url);
     setFormData(prevData => ({
       ...prevData,
       gallery_images: [...(prevData.gallery_images || []), ...newUrls]
     }));
-    setIsUploading(false);
   };
 
   const handleDeleteClick = () => {
@@ -448,16 +444,21 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
   return (
     <>
       <FormModal
-        title={initialData ? 'Edit Wedding' : 'Add Wedding'}
+        title={initialData ? 'Edit Wedding Post' : 'Add Wedding Post'}
         onClose={() => {
+          if (isUploading) {
+            setShowUploadingWarning(true);
+            return;
+          }
           if (hasAnyData()) {
             handleSubmit(new Event('submit') as any, true);
           } else {
             onClose();
           }
         }}
-        closeButtonLabel={hasAnyData() ? "Save as Draft" : "Cancel"}
+        closeButtonLabel={isUploading ? "Upload in progress..." : (hasAnyData() ? "Save as Draft" : "Cancel")}
         icon={hasAnyData() ? RiSaveLine : RiCloseLine}
+        disableClose={isUploading}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <FormField label="Couple Names" required>
@@ -526,7 +527,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                       <button
                         onClick={(e) => {
                           e.preventDefault();
-                          setPreviewImage(formData.featuredImageKey);
+                          setPreviewImage(formData.featuredImageKey || null);
                         }}
                         className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
                         aria-label="View full size"
@@ -542,7 +543,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                             handleDeleteClick();
                           }}
                           className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
-                          disabled={isDeleting}
+                          disabled={isDeleting || isUploading}
                           aria-label="Delete image"
                           title="Delete image"
                           type="button"
@@ -558,23 +559,13 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                   onChange={handleFeaturedImageUpload}
                   maxFiles={1}
                   onDelete={handleDeleteClick}
-                  disabled={isDeleting}
+                  disabled={isDeleting || isUploading}
                   folder="weddings"
                   multiple={false}
+                  onUploadStatusChange={(status) => {
+                    setIsUploading(status === 'uploading');
+                  }}
                 />
-              )}
-              {isDeleting && (
-                <div className="mt-2">
-                  <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-red-600 transition-all duration-300 ease-out"
-                      style={{ width: `${deleteProgress}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Deleting image... {deleteProgress}%
-                  </p>
-                </div>
               )}
             </div>
           </FormField>
@@ -584,10 +575,13 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
               <ImageDropzone
                 onChange={handleGalleryImagesUpload}
                 value={formData.gallery_images}
-                disabled={isDeleting}
+                disabled={isDeleting || isUploading}
                 folder="weddinggallery"
                 multiple={true}
                 hidePreview={true}
+                onUploadStatusChange={(status) => {
+                  setIsUploading(status === 'uploading');
+                }}
               />
               <p className="text-sm text-gray-500 mb-4">
                 Upload images for the wedding gallery ({formData.gallery_images?.length || 0} uploaded)
@@ -733,18 +727,30 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                   variant="secondary" 
                   onClick={(e) => {
                     e.preventDefault();
+                    if (isUploading) {
+                      setShowUploadingWarning(true);
+                      return;
+                    }
                     handleSubmit(e, true);
                   }}
-                  className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  className={`bg-gray-50 text-gray-600 hover:bg-gray-100 ${
+                    isUploading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isUploading}
+                  title={isUploading ? 'Please wait for upload to complete' : undefined}
                 >
                   Save as Draft
                 </Button>
                 <Button 
                   type="submit" 
                   icon={RiSaveLine}
-                  disabled={!isFormComplete()}
+                  disabled={!isFormComplete() || isUploading}
                   onClick={(e) => {
                     e.preventDefault();
+                    if (isUploading) {
+                      setShowUploadingWarning(true);
+                      return;
+                    }
                     if (!isFormComplete()) {
                       setShowIncompleteWarning(true);
                       return;
@@ -752,14 +758,16 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                     handleSubmit(e, false);
                   }}
                   className={`${
-                    isFormComplete()
+                    isFormComplete() && !isUploading
                       ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
                       : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
                   }`}
                   title={
-                    !isFormComplete()
+                    isUploading
+                      ? 'Please wait for upload to complete'
+                      : !isFormComplete()
                       ? `Cannot publish: Missing ${getMissingFields().join(', ')}`
-                      : initialData ? 'Update wedding' : 'Publish wedding'
+                      : initialData ? 'Update wedding post' : 'Publish wedding post'
                   }
                 >
                   {!isFormComplete() ? (
@@ -768,297 +776,297 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                       Incomplete
                     </span>
                   ) : (
-                    initialData ? 'Update Wedding' : 'Publish Wedding'
+                    initialData ? 'Update Post' : 'Publish Post'
                   )}
                 </Button>
               </>
             )}
           </div>
         </form>
+      </FormModal>
 
-        {showDeleteImageConfirm && (
-          <ConfirmModal
-            title="️ Delete Image Permanently"
-            message={
+      {showDeleteImageConfirm && (
+        <ConfirmModal
+          title="️ Delete Image Permanently"
+          message={
+            <div className="space-y-4">
               <div className="space-y-4">
-                <div className="space-y-4">
-                  <p>Are you sure you want to delete this image?</p>
-                  <div className="bg-red-50 p-4 rounded-lg space-y-2">
-                    <div className="font-medium text-red-800">This will permanently delete:</div>
-                    <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
-                      {deleteImageIndex === null ? (
-                        <li>The featured image</li>
-                      ) : (
-                        <li>The gallery image</li>
-                      )}
-                      <li>The image from storage</li>
-                    </ul>
-                    <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                <p>Are you sure you want to delete this image?</p>
+                <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                  <div className="font-medium text-red-800">This will permanently delete:</div>
+                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                    {deleteImageIndex === null ? (
+                      <li>The featured image</li>
+                    ) : (
+                      <li>The gallery image</li>
+                    )}
+                    <li>The image from storage</li>
+                  </ul>
+                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                </div>
+              </div>
+              {isDeleting && (
+                <div className="mt-4">
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                      style={{ width: `${deleteProgress}%` }}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2 text-center">
+                    Deleting image... {deleteProgress}%
                   </div>
                 </div>
-                {isDeleting && (
-                  <div className="mt-4">
-                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-red-600 transition-all duration-300 ease-out"
-                        style={{ width: `${deleteProgress}%` }}
-                      />
-                    </div>
-                    <div className="text-sm text-gray-500 mt-2 text-center">
-                      Deleting image... {deleteProgress}%
-                    </div>
-                  </div>
-                )}
-              </div>
-            }
-            confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
-            onConfirm={() => {
-              if (!isDeleting) {
-                if (deleteImageIndex !== null) {
-                  handleGalleryImageDelete(deleteImageIndex);
-                } else {
-                  handleImageDelete();
-                }
+              )}
+            </div>
+          }
+          confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
+          onConfirm={() => {
+            if (!isDeleting) {
+              if (deleteImageIndex !== null) {
+                handleGalleryImageDelete(deleteImageIndex);
+              } else {
+                handleImageDelete();
               }
-            }}
-            onCancel={() => {
-              if (!isDeleting) {
-                setShowDeleteImageConfirm(false);
-                setDeleteImageIndex(null);
-              }
-            }}
-            confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
-              isDeleting ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            disabled={isDeleting}
-            showCancelButton={!isDeleting}
-            allowBackgroundCancel={!isDeleting}
-          />
-        )}
+            }
+          }}
+          onCancel={() => {
+            if (!isDeleting) {
+              setShowDeleteImageConfirm(false);
+              setDeleteImageIndex(null);
+            }
+          }}
+          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
+            isDeleting ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          disabled={isDeleting}
+          showCancelButton={!isDeleting}
+          allowBackgroundCancel={!isDeleting}
+        />
+      )}
 
-        {showCoupleNamesWarning && (
-          <ConfirmModal
-            title="Couple Names Required"
-            message={
-              <div className="space-y-4">
-                <p className="text-gray-600">Couple names are required even when saving as a draft.</p>
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 text-[#8B4513]">
-                    <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
-                    <p>Please enter the couple names before saving.</p>
-                  </div>
+      {showCoupleNamesWarning && (
+        <ConfirmModal
+          title="Couple Names Required"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">Couple names are required even when saving as a draft.</p>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 text-[#8B4513]">
+                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                  <p>Please enter the couple names before saving.</p>
                 </div>
               </div>
-            }
-            confirmLabel="OK"
-            onConfirm={() => {
-              setShowCoupleNamesWarning(false);
-              setTimeout(() => {
-                coupleNamesInputRef.current?.focus();
-              }, 100);
-            }}
-            onCancel={() => setShowCoupleNamesWarning(false)}
-            confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
-            showCancelButton={false}
-            showCloseButton={false}
-            allowBackgroundCancel={false}
-          />
-        )}
+            </div>
+          }
+          confirmLabel="OK"
+          onConfirm={() => {
+            setShowCoupleNamesWarning(false);
+            setTimeout(() => {
+              coupleNamesInputRef.current?.focus();
+            }, 100);
+          }}
+          onCancel={() => setShowCoupleNamesWarning(false)}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          showCancelButton={false}
+          showCloseButton={false}
+          allowBackgroundCancel={false}
+        />
+      )}
 
-        {showImageDeleteWarning && (
-          <ConfirmModal
-            title="⚠️ Delete Uploaded Images"
-            message={
+      {showImageDeleteWarning && (
+        <ConfirmModal
+          title="⚠️ Delete Uploaded Images"
+          message={
+            <div className="space-y-4">
               <div className="space-y-4">
-                <div className="space-y-4">
-                  <p>Are you sure you want to close without saving?</p>
-                  <div className="bg-red-50 p-4 rounded-lg space-y-2">
-                    <div className="font-medium text-red-800">This will permanently delete:</div>
-                    <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
-                      {formData.featuredImageUrl && <li>The featured image</li>}
-                      {formData.gallery_images && formData.gallery_images.length > 0 && (
-                        <li>All uploaded gallery images ({formData.gallery_images.length} images)</li>
-                      )}
-                    </ul>
-                    <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
-                  </div>
-                </div>
-                {isDeleting && (
-                  <div className="mt-4">
-                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-red-600 transition-all duration-300 ease-out"
-                        style={{ width: `${deleteProgress}%` }}
-                      />
-                    </div>
-                    <div className="text-sm text-gray-500 mt-2 text-center">
-                      Deleting images... {deleteProgress}%
-                    </div>
-                  </div>
-                )}
-              </div>
-            }
-            confirmLabel={isDeleting ? "Deleting..." : "Delete and Close"}
-            onConfirm={handleCleanupAndClose}
-            onCancel={() => {
-              if (!isDeleting) {
-                setShowImageDeleteWarning(false);
-              }
-            }}
-            confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
-              isDeleting ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            disabled={isDeleting}
-            showCancelButton={!isDeleting}
-            allowBackgroundCancel={!isDeleting}
-          />
-        )}
-
-        {showUnsavedChangesWarning && (
-          <ConfirmModal
-            title="Unsaved Changes"
-            message={
-              <div className="space-y-4">
-                <p className="text-gray-600">You have unsaved changes. What would you like to do?</p>
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 text-yellow-800">
-                    <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
-                    <p>Choose to save your changes or close without saving.</p>
-                  </div>
+                <p>Are you sure you want to close without saving?</p>
+                <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                  <div className="font-medium text-red-800">This will permanently delete:</div>
+                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                    {formData.featuredImageUrl && <li>The featured image</li>}
+                    {formData.gallery_images && formData.gallery_images.length > 0 && (
+                      <li>All uploaded gallery images ({formData.gallery_images.length} images)</li>
+                    )}
+                  </ul>
+                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
                 </div>
               </div>
-            }
-            confirmLabel="Save"
-            onConfirm={(e) => {
-              setShowUnsavedChangesWarning(false);
-              handleSubmit(e as any, true);
-            }}
-            onCancel={() => {
-              setShowUnsavedChangesWarning(false);
-              onClose();
-            }}
-            confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
-            showCancelButton={true}
-            cancelLabel="Exit without saving"
-          />
-        )}
-
-        {showIncompleteWarning && (
-          <ConfirmModal
-            title="Cannot Publish Incomplete Wedding"
-            message={
-              <div className="space-y-4">
-                <p className="text-gray-600">The following required fields are missing:</p>
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 text-yellow-800">
-                    <RiErrorWarningLine className="flex-shrink-0" />
-                    <ul className="list-disc list-inside">
-                      {getMissingFields().map((field, index) => (
-                        <li key={index}>{field}</li>
-                      ))}
-                    </ul>
+              {isDeleting && (
+                <div className="mt-4">
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                      style={{ width: `${deleteProgress}%` }}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2 text-center">
+                    Deleting images... {deleteProgress}%
                   </div>
                 </div>
-                <p className="text-gray-600">
-                  You can either complete these fields to publish, or save as a draft to finish later.
-                </p>
-              </div>
+              )}
+            </div>
+          }
+          confirmLabel={isDeleting ? "Deleting..." : "Delete and Close"}
+          onConfirm={handleCleanupAndClose}
+          onCancel={() => {
+            if (!isDeleting) {
+              setShowImageDeleteWarning(false);
             }
-            confirmLabel="OK"
-            onConfirm={() => setShowIncompleteWarning(false)}
-            onCancel={() => setShowIncompleteWarning(false)}
-            confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
-          />
-        )}
+          }}
+          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
+            isDeleting ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          disabled={isDeleting}
+          showCancelButton={!isDeleting}
+          allowBackgroundCancel={!isDeleting}
+        />
+      )}
 
-        {previewImage && (
-          <div 
-            className="fixed inset-0 z-50 bg-black bg-opacity-90"
+      {showUnsavedChangesWarning && (
+        <ConfirmModal
+          title="Unsaved Changes"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">You have unsaved changes. What would you like to do?</p>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                  <p>Choose to save your changes or close without saving.</p>
+                </div>
+              </div>
+            </div>
+          }
+          confirmLabel="Save"
+          onConfirm={(e) => {
+            setShowUnsavedChangesWarning(false);
+            handleSubmit(e as any, true);
+          }}
+          onCancel={() => {
+            setShowUnsavedChangesWarning(false);
+            onClose();
+          }}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          showCancelButton={true}
+          cancelLabel="Exit without saving"
+        />
+      )}
+
+      {showIncompleteWarning && (
+        <ConfirmModal
+          title="Cannot Publish Incomplete Wedding"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">The following required fields are missing:</p>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <RiErrorWarningLine className="flex-shrink-0" />
+                  <ul className="list-disc list-inside">
+                    {getMissingFields().map((field, index) => (
+                      <li key={index}>{field}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <p className="text-gray-600">
+                You can either complete these fields to publish, or save as a draft to finish later.
+              </p>
+            </div>
+          }
+          confirmLabel="OK"
+          onConfirm={() => setShowIncompleteWarning(false)}
+          onCancel={() => setShowIncompleteWarning(false)}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+        />
+      )}
+
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-90"
+          onClick={() => {
+            setPreviewImage(null);
+            setPreviewImageIndex(-1);
+          }}
+        >
+          {/* Close button */}
+          <button
             onClick={() => {
               setPreviewImage(null);
               setPreviewImageIndex(-1);
             }}
+            className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
+            aria-label="Close preview"
+            type="button"
           >
-            {/* Close button */}
-            <button
-              onClick={() => {
-                setPreviewImage(null);
-                setPreviewImageIndex(-1);
-              }}
-              className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
-              aria-label="Close preview"
-              type="button"
-            >
-              <RiCloseLine className="w-8 h-8" />
-            </button>
+            <RiCloseLine className="w-8 h-8" />
+          </button>
 
-            {/* Navigation buttons */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleNavigatePreview('prev');
-              }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors"
-              aria-label="Previous image"
-              type="button"
-            >
-              <RiArrowLeftSLine className="w-8 h-8" />
-            </button>
+          {/* Navigation buttons */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNavigatePreview('prev');
+            }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors"
+            aria-label="Previous image"
+            type="button"
+          >
+            <RiArrowLeftSLine className="w-8 h-8" />
+          </button>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleNavigatePreview('next');
-              }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors"
-              aria-label="Next image"
-              type="button"
-            >
-              <RiArrowRightSLine className="w-8 h-8" />
-            </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNavigatePreview('next');
+            }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors"
+            aria-label="Next image"
+            type="button"
+          >
+            <RiArrowRightSLine className="w-8 h-8" />
+          </button>
 
-            {/* Image container with counter */}
-            <div 
-              className="w-full h-full flex flex-col items-center justify-center gap-4 p-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Image
-                src={previewImage}
-                alt={`Gallery image ${previewImageIndex + 1}`}
-                className="max-w-[90vw] max-h-[85vh] object-contain"
-                width={1920}
-                height={1080}
-                priority
-              />
-              <div className="text-white text-sm font-medium bg-black bg-opacity-75 px-4 py-1.5 rounded-full">
-                Image {previewImageIndex + 1} of {formData.gallery_images?.length}
-              </div>
+          {/* Image container with counter */}
+          <div 
+            className="w-full h-full flex flex-col items-center justify-center gap-4 p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Image
+              src={previewImage}
+              alt={`Gallery image ${previewImageIndex + 1}`}
+              className="max-w-[90vw] max-h-[85vh] object-contain"
+              width={1920}
+              height={1080}
+              priority
+            />
+            <div className="text-white text-sm font-medium bg-black bg-opacity-75 px-4 py-1.5 rounded-full">
+              Image {previewImageIndex + 1} of {formData.gallery_images?.length}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {showUploadingWarning && (
-          <ConfirmModal
-            title="Upload in Progress"
-            message={
-              <div className="space-y-4">
-                <p className="text-gray-600">Please wait for all images to finish uploading before proceeding.</p>
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 text-yellow-800">
-                    <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
-                    <p>Images are still being uploaded. This may take a moment.</p>
-                  </div>
+      {showUploadingWarning && (
+        <ConfirmModal
+          title="Upload in Progress"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">Please wait for the image upload to complete before proceeding.</p>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                  <p>Images are still being uploaded. Please wait for the upload to finish.</p>
                 </div>
               </div>
-            }
-            confirmLabel="OK"
-            onConfirm={() => setShowUploadingWarning(false)}
-            onCancel={() => setShowUploadingWarning(false)}
-            confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
-            hideCancel
-          />
-        )}
-      </FormModal>
+            </div>
+          }
+          confirmLabel="OK"
+          onConfirm={() => setShowUploadingWarning(false)}
+          onCancel={() => setShowUploadingWarning(false)}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          showCancelButton={false}
+        />
+      )}
 
       {showErrorAlert && (
         <ConfirmModal
