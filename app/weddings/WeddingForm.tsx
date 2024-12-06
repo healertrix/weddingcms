@@ -199,13 +199,11 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
   };
 
   const handleGalleryImageDelete = async (index: number) => {
-    const imageToDelete = formData.gallery_images[index];
-    if (!imageToDelete || isDeleting) return;
-
-    setIsDeleting(true);
-    setDeleteProgress(0);
-    
     try {
+      setIsDeleting(true);
+      setDeleteProgress(0);
+      
+      // Simulate progress updates
       const progressInterval = setInterval(() => {
         setDeleteProgress(prev => {
           if (prev >= 90) {
@@ -216,6 +214,9 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
         });
       }, 100);
 
+      const imageToDelete = formData.gallery_images[index];
+
+      // Delete the image from storage
       const response = await fetch('/api/upload/delete', {
         method: 'POST',
         headers: {
@@ -225,27 +226,52 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete gallery image');
+        throw new Error('Failed to delete image from storage');
       }
 
+      // Remove from array only after successful deletion
+      const newGalleryImages = [...formData.gallery_images];
+      newGalleryImages.splice(index, 1);
+      
+      // Update form data
+      setFormData(prevData => ({
+        ...prevData,
+        gallery_images: newGalleryImages
+      }));
+
+      // Complete the progress
+      clearInterval(progressInterval);
       setDeleteProgress(100);
+      
       setTimeout(() => {
-        const newGalleryImages = [...formData.gallery_images];
-        newGalleryImages.splice(index, 1);
-        setFormData({
-          ...formData,
-          gallery_images: newGalleryImages
-        });
-        setDeleteImageIndex(null);
         setIsDeleting(false);
         setDeleteProgress(0);
+        setShowDeleteImageConfirm(false);
+        setDeleteImageIndex(null);
       }, 500);
 
-      clearInterval(progressInterval);
     } catch (error) {
-      console.error('Error deleting gallery image:', error);
-      setDeleteProgress(0);
+      console.error('Error deleting image:', error);
       setIsDeleting(false);
+      setDeleteProgress(0);
+      // Show error state but don't revert the UI since we want to allow retry
+      setShowDeleteImageConfirm(false);
+      setDeleteImageIndex(null);
+    }
+  };
+
+  const handleImageDeleteClick = (index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeleteImageIndex(index);
+    setShowDeleteImageConfirm(true);
+  };
+
+  const confirmImageDelete = () => {
+    if (deleteImageIndex !== null) {
+      handleGalleryImageDelete(deleteImageIndex);
+      setShowDeleteImageConfirm(false);
+      setDeleteImageIndex(null);
     }
   };
 
@@ -397,13 +423,6 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
       ...prevData,
       gallery_images: newItems
     }));
-  };
-
-  const handleImageDeleteClick = (index: number, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDeleteImageIndex(index);
-    setShowImageDeleteWarning(true);
   };
 
   const handlePreviewImage = (imageUrl: string, index: number) => {
