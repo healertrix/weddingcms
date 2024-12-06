@@ -233,9 +233,9 @@ export default function FilmsPage() {
 
   const filteredFilms = films.filter(film => {
     const matchesSearch = 
-      film.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      film.couple_names.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      film.location.toLowerCase().includes(searchQuery.toLowerCase());
+      (film.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (film.couple_names?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (film.location?.toLowerCase() || '').includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || film.status === statusFilter;
     

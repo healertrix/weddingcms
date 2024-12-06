@@ -101,7 +101,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
       wedding_date: formData.wedding_date || null,
       location: formData.location.trim() || null,
       description: formData.description.trim() || null,
-      video_url: formData.video_url.trim() || null,
+      video_url: isValidVideo ? formData.video_url.trim() : null,
       status: 'published'
     };
 
@@ -123,7 +123,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
       wedding_date: formData.wedding_date || null,
       location: formData.location.trim() || null,
       description: formData.description.trim() || null,
-      video_url: formData.video_url.trim() || null,
+      video_url: isValidVideo ? formData.video_url.trim() : null,
       status: 'draft'
     };
 
@@ -194,7 +194,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
             wedding_date: formData.wedding_date || null,
             location: formData.location.trim() || null,
             description: formData.description.trim() || null,
-            video_url: formData.video_url.trim() || null,
+            video_url: isValidVideo ? formData.video_url.trim() : null,
             status: 'draft'
           };
           console.log('Saving draft on close with data:', filmData);
@@ -205,6 +205,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
       }}
       closeButtonLabel={hasUnsavedChanges() ? "Save as Draft" : "Cancel"}
       icon={hasUnsavedChanges() ? RiSaveLine : RiCloseLine}
+      hideHeader={true}
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 gap-6">

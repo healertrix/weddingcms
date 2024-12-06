@@ -39,13 +39,15 @@ export default function ConfirmModal({
         />
         
         <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-          <button
-            onClick={onCancel}
-            className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-500 transition-colors"
-            aria-label="Close modal"
-          >
-            <RiCloseLine className="w-5 h-5" />
-          </button>
+          {showCloseButton && (
+            <button
+              onClick={onCancel}
+              className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-500 transition-colors"
+              aria-label="Close modal"
+            >
+              <RiCloseLine className="w-5 h-5" />
+            </button>
+          )}
           
           <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
             <div className="sm:flex sm:items-start">
