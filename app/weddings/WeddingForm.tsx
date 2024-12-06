@@ -23,8 +23,7 @@ export interface WeddingFormData {
   coupleNames: string;
   weddingDate: string;
   location: string;
-  featuredImageKey?: string;
-  featuredImageUrl?: string;
+  featuredImageKey: string;
   gallery_images: string[];
   isFeaturedHome: boolean;
 }
@@ -36,7 +35,6 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
     weddingDate: initialData?.weddingDate || '',
     location: initialData?.location || '',
     featuredImageKey: initialData?.featuredImageKey || '',
-    featuredImageUrl: initialData?.featuredImageUrl || '',
     gallery_images: Array.isArray(initialData?.gallery_images) ? initialData.gallery_images : [],
     isFeaturedHome: initialData?.isFeaturedHome || false
   });
@@ -135,8 +133,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
     if (files.length > 0) {
       setFormData({
         ...formData,
-        featuredImageKey: files[0].url,
-        featuredImageUrl: files[0].url
+        featuredImageKey: files[0].url
       });
     }
   };
@@ -185,8 +182,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
         setTimeout(() => {
           setFormData({
             ...formData,
-            featuredImageKey: '',
-            featuredImageUrl: ''
+            featuredImageKey: ''
           });
           setShowDeleteImageConfirm(false);
           setIsDeleting(false);
@@ -473,10 +469,10 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
 
           <FormField label="Featured Image" required>
             <div className="space-y-2">
-              {formData.featuredImageUrl ? (
+              {formData.featuredImageKey ? (
                 <div className="relative aspect-video rounded-lg overflow-hidden group">
                   <img
-                    src={formData.featuredImageUrl}
+                    src={formData.featuredImageKey}
                     alt="Featured image"
                     className="w-full h-full object-cover"
                   />
@@ -485,7 +481,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                       <button
                         onClick={(e) => {
                           e.preventDefault();
-                          setPreviewImage(formData.featuredImageUrl || null);
+                          setPreviewImage(formData.featuredImageKey);
                         }}
                         className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
                         aria-label="View full size"
