@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
-import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiImageLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine } from 'react-icons/ri';
+import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiImageLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine, RiArrowLeftLine, RiArrowRightLine } from 'react-icons/ri';
 import WeddingForm, { WeddingFormData } from './WeddingForm';
 import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
@@ -34,6 +34,9 @@ export default function WeddingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [showGalleryPreview, setShowGalleryPreview] = useState(false);
+  const [selectedGalleryWedding, setSelectedGalleryWedding] = useState<Wedding | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const supabase = createClientComponentClient<Database>();
   const router = useRouter();
 
@@ -211,6 +214,45 @@ export default function WeddingsPage() {
     }
   };
 
+  const handleGalleryPreview = (wedding: Wedding) => {
+    setSelectedGalleryWedding(wedding);
+    setShowGalleryPreview(true);
+    setCurrentImageIndex(0);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (showGalleryPreview) {
+        if (e.key === 'ArrowRight') {
+          handleNextImage();
+        } else if (e.key === 'ArrowLeft') {
+          handlePrevImage();
+        } else if (e.key === 'Escape') {
+          setShowGalleryPreview(false);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showGalleryPreview]);
+
+  const handleNextImage = () => {
+    if (selectedGalleryWedding) {
+      setCurrentImageIndex((prev) => 
+        prev === selectedGalleryWedding.gallery_images.length - 1 ? 0 : prev + 1
+      );
+    }
+  };
+
+  const handlePrevImage = () => {
+    if (selectedGalleryWedding) {
+      setCurrentImageIndex((prev) => 
+        prev === 0 ? selectedGalleryWedding.gallery_images.length - 1 : prev - 1
+      );
+    }
+  };
+
   const filteredWeddings = weddings.filter(wedding => {
     const matchesSearch = 
       wedding.couple_names.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -308,10 +350,23 @@ export default function WeddingsPage() {
                           <RiCalendarLine className="mr-1.5" />
                           {formatDate(wedding.wedding_date)}
                         </span>
-                        <span className="flex items-center">
-                          <RiMapPinLine className="mr-1.5" />
-                          {wedding.location}
-                        </span>
+                        {wedding.location && (
+                          <span className="flex items-center">
+                            <RiMapPinLine className="mr-1.5" />
+                            {wedding.location}
+                          </span>
+                        )}
+                        {wedding.gallery_images && wedding.gallery_images.length > 0 && (
+                          <button
+                            onClick={() => handleGalleryPreview(wedding)}
+                            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full transition-all bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200"
+                          >
+                            <RiImageLine className="text-gray-500 w-4 h-4" />
+                            <span className="text-sm">
+                              {wedding.gallery_images.length} Gallery {wedding.gallery_images.length === 1 ? 'Image' : 'Images'}
+                            </span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -464,6 +519,53 @@ export default function WeddingsPage() {
           confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
           disabled={isDeleting}
         />
+      )}
+
+      {showGalleryPreview && selectedGalleryWedding && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center">
+          <div className="relative w-full h-full flex items-center justify-center">
+            <button
+              onClick={() => setShowGalleryPreview(false)}
+              className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
+              aria-label="Close gallery"
+            >
+              <RiCloseLine className="w-8 h-8" />
+            </button>
+
+            <button
+              onClick={handlePrevImage}
+              className="absolute left-4 p-2 text-white hover:text-gray-300 transition-colors rounded-full bg-black bg-opacity-50"
+              aria-label="Previous image"
+            >
+              <RiArrowLeftLine className="w-6 h-6" />
+            </button>
+
+            <div className="relative w-full h-full max-w-6xl max-h-[80vh] mx-4">
+              <Image
+                src={selectedGalleryWedding.gallery_images[currentImageIndex]}
+                alt={`Gallery image ${currentImageIndex + 1}`}
+                className="object-contain w-full h-full"
+                fill
+                sizes="(max-width: 1536px) 100vw, 1536px"
+                priority
+              />
+            </div>
+
+            <button
+              onClick={handleNextImage}
+              className="absolute right-4 p-2 text-white hover:text-gray-300 transition-colors rounded-full bg-black bg-opacity-50"
+              aria-label="Next image"
+            >
+              <RiArrowRightLine className="w-6 h-6" />
+            </button>
+
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 px-4 py-2 rounded-full">
+              <span className="text-white text-sm">
+                {currentImageIndex + 1} / {selectedGalleryWedding.gallery_images.length}
+              </span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
