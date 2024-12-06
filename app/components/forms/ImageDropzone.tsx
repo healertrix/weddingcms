@@ -63,6 +63,7 @@ interface ImageDropzoneProps {
   folder?: string;
   multiple?: boolean;
   hidePreview?: boolean;
+  onUploadStatusChange?: (status: 'idle' | 'uploading' | 'success' | 'error') => void;
 }
 
 export default function ImageDropzone({ 
@@ -72,7 +73,8 @@ export default function ImageDropzone({
   disabled = false,
   folder = 'general',
   multiple = false,
-  hidePreview = false
+  hidePreview = false,
+  onUploadStatusChange
 }: ImageDropzoneProps) {
   const [uploadStatus, setUploadStatus] = useState<{
     status: 'idle' | 'uploading' | 'success' | 'error';
@@ -188,6 +190,10 @@ export default function ImageDropzone({
       </div>
     );
   };
+
+  useEffect(() => {
+    onUploadStatusChange?.(uploadStatus.status);
+  }, [uploadStatus.status, onUploadStatusChange]);
 
   return (
     <div className="relative">

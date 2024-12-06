@@ -59,6 +59,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const [previewImageIndex, setPreviewImageIndex] = useState<number>(-1);
   const [deleteImageIndex, setDeleteImageIndex] = useState<number | null>(null);
   const [showUnsavedChangesWarning, setShowUnsavedChangesWarning] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const isFormComplete = () => {
     const requiredFields = {
@@ -444,14 +445,18 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
       <FormModal
         title={initialData ? 'Edit Blog Post' : 'Add Blog Post'}
         onClose={() => {
+          if (isUploading) {
+            return; // Prevent closing during upload
+          }
           if (hasAnyData()) {
             handleSubmit(new Event('submit') as any, true);
           } else {
             onClose();
           }
         }}
-        closeButtonLabel={hasAnyData() ? "Save as Draft" : "Cancel"}
+        closeButtonLabel={isUploading ? "Upload in progress..." : (hasAnyData() ? "Save as Draft" : "Cancel")}
         icon={hasAnyData() ? RiSaveLine : RiCloseLine}
+        disableClose={isUploading}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <FormField label="Title" required>
@@ -576,6 +581,9 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                   disabled={isDeleting}
                   folder="blogposts"
                   multiple={false}
+                  onUploadStatusChange={(status) => {
+                    setIsUploading(status === 'uploading');
+                  }}
                 />
               )}
               {isDeleting && (
@@ -603,6 +611,9 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                 folder="bloggallery"
                 multiple={true}
                 hidePreview={true}
+                onUploadStatusChange={(status) => {
+                  setIsUploading(status === 'uploading');
+                }}
               />
               <p className="text-sm text-gray-500 mb-4">
                 Upload images for the blog gallery ({formData.gallery_images?.length || 0} uploaded)
@@ -757,14 +768,18 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                     e.preventDefault();
                     handleSubmit(e, true);
                   }}
-                  className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  className={`bg-gray-50 text-gray-600 hover:bg-gray-100 ${
+                    isUploading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isUploading}
+                  title={isUploading ? 'Please wait for upload to complete' : undefined}
                 >
                   Save as Draft
                 </Button>
                 <Button 
                   type="submit" 
                   icon={RiSaveLine}
-                  disabled={!isFormComplete()}
+                  disabled={!isFormComplete() || isUploading}
                   onClick={(e) => {
                     e.preventDefault();
                     if (!isFormComplete()) {
@@ -774,12 +789,14 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                     handleSubmit(e, false);
                   }}
                   className={`${
-                    isFormComplete()
+                    isFormComplete() && !isUploading
                       ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
                       : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
                   }`}
                   title={
-                    !isFormComplete()
+                    isUploading
+                      ? 'Please wait for upload to complete'
+                      : !isFormComplete()
                       ? `Cannot publish: Missing ${getMissingFields().join(', ')}`
                       : initialData ? 'Update blog post' : 'Publish blog post'
                   }
