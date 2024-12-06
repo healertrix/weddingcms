@@ -53,6 +53,8 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
   const [showUnsavedChangesWarning, setShowUnsavedChangesWarning] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [showUploadingWarning, setShowUploadingWarning] = useState(false);
 
   const isFormComplete = () => {
     const requiredFields = {
@@ -74,8 +76,22 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
     return missingFields;
   };
 
+  const hasUnsavedChanges = () => {
+    // Exclude gallery_images and featuredImageKey from the comparison
+    const { gallery_images: currentGallery, featuredImageKey: currentFeaturedImage, ...currentDataWithoutMedia } = formData;
+    const { gallery_images: initialGallery, featuredImageKey: initialFeaturedImage, ...initialDataWithoutMedia } = initialFormData;
+    
+    // Only compare non-media fields
+    return JSON.stringify(currentDataWithoutMedia) !== JSON.stringify(initialDataWithoutMedia);
+  };
+
   const handleSubmit = async (e: React.FormEvent, saveAsDraft: boolean) => {
     e.preventDefault();
+
+    if (isUploading) {
+      setShowUploadingWarning(true);
+      return;
+    }
 
     // First check if we can save as draft
     if (saveAsDraft && !formData.coupleNames.trim()) {
@@ -108,24 +124,30 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
       }
     } catch (error) {
       console.error('Error in handleSubmit:', error);
+      setErrorDetails(error instanceof Error ? error.message : 'Unknown error occurred');
+      setShowErrorAlert(true);
     }
   };
 
   const handleFeaturedImageUpload = (files: Array<{ key: string; url: string }>) => {
+    setIsUploading(true);
     if (files.length > 0) {
       setFormData({
         ...formData,
         featuredImageKey: files[0].url
       });
     }
+    setIsUploading(false);
   };
 
   const handleGalleryImagesUpload = (files: Array<{ key: string; url: string }>) => {
+    setIsUploading(true);
     const newUrls = files.map(file => file.url);
     setFormData(prevData => ({
       ...prevData,
       gallery_images: [...(prevData.gallery_images || []), ...newUrls]
     }));
+    setIsUploading(false);
   };
 
   const handleDeleteClick = () => {
@@ -257,22 +279,25 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
     }
   };
 
-  const hasUnsavedChanges = () => {
-    const { gallery_images: currentGallery, ...currentDataWithoutGallery } = formData;
-    const { gallery_images: initialGallery, ...initialDataWithoutGallery } = initialFormData;
-    
-    return JSON.stringify(initialDataWithoutGallery) !== JSON.stringify(currentDataWithoutGallery);
-  };
-
   const handleClose = () => {
+    if (isUploading) {
+      setShowUploadingWarning(true);
+      return;
+    }
+
     const hasCoupleNames = formData.coupleNames.trim() !== '';
-    const hasImages = (formData.featuredImageUrl || (formData.gallery_images && formData.gallery_images.length > 0));
+    const hasImages = (formData.featuredImageKey || (formData.gallery_images && formData.gallery_images.length > 0));
     const isNewPost = !initialData;
 
     if (hasImages && !hasCoupleNames && isNewPost) {
+      // If there are images but no couple names, warn about image deletion
       setShowCoupleNamesWarning(true);
     } else if (hasUnsavedChanges()) {
+      // If there are unsaved changes in non-media fields, show warning
       setShowUnsavedChangesWarning(true);
+    } else if (hasImages) {
+      // If there are only image changes, save them automatically
+      handleSubmit(new Event('submit') as any, true);
     } else {
       onClose();
     }
@@ -289,6 +314,8 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
     const hasCoupleNames = formData.coupleNames.trim() !== '';
     
     if (!isNewPost || hasCoupleNames) {
+      // If we have a title or it's an existing post, save the changes before closing
+      await handleSubmit(new Event('submit') as any, true);
       onClose();
       return;
     }
@@ -1002,6 +1029,28 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
               </div>
             </div>
           </div>
+        )}
+
+        {showUploadingWarning && (
+          <ConfirmModal
+            title="Upload in Progress"
+            message={
+              <div className="space-y-4">
+                <p className="text-gray-600">Please wait for all images to finish uploading before proceeding.</p>
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 text-yellow-800">
+                    <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                    <p>Images are still being uploaded. This may take a moment.</p>
+                  </div>
+                </div>
+              </div>
+            }
+            confirmLabel="OK"
+            onConfirm={() => setShowUploadingWarning(false)}
+            onCancel={() => setShowUploadingWarning(false)}
+            confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+            hideCancel
+          />
         )}
       </FormModal>
 
