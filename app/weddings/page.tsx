@@ -94,8 +94,9 @@ export default function WeddingsPage() {
         });
       }, 100);
 
+      // Delete featured image if exists
       if (deletingWedding.featured_image_key) {
-        setDeleteProgress(30);
+        setDeleteProgress(20);
         const imageResponse = await fetch('/api/upload/delete', {
           method: 'POST',
           headers: {
@@ -105,11 +106,31 @@ export default function WeddingsPage() {
         });
 
         if (!imageResponse.ok) {
-          throw new Error('Failed to delete image from storage');
+          throw new Error('Failed to delete featured image from storage');
         }
-        setDeleteProgress(60);
+        setDeleteProgress(40);
       }
 
+      // Delete gallery images if they exist
+      if (deletingWedding.gallery_images && deletingWedding.gallery_images.length > 0) {
+        setDeleteProgress(50);
+        for (const imageUrl of deletingWedding.gallery_images) {
+          const galleryResponse = await fetch('/api/upload/delete', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ imageKey: imageUrl }),
+          });
+
+          if (!galleryResponse.ok) {
+            throw new Error('Failed to delete gallery image from storage');
+          }
+        }
+        setDeleteProgress(70);
+      }
+
+      // Delete the wedding from database
       const { error: deleteError } = await supabase
         .from('weddings')
         .delete()
@@ -404,8 +425,10 @@ export default function WeddingsPage() {
                   <div className="font-medium text-red-800">This will permanently delete:</div>
                   <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
                     <li>The wedding details</li>
-                    <li>Featured image</li>
-                    <li>All gallery images</li>
+                    {deletingWedding.featured_image_key && <li>Featured image</li>}
+                    {deletingWedding.gallery_images && deletingWedding.gallery_images.length > 0 && (
+                      <li>All gallery images ({deletingWedding.gallery_images.length} images)</li>
+                    )}
                   </ul>
                   <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
                 </div>
@@ -419,7 +442,11 @@ export default function WeddingsPage() {
                     />
                   </div>
                   <div className="text-sm text-gray-500 mt-2 text-center">
-                    Deleting wedding... {deleteProgress}%
+                    {deleteProgress < 40 && "Deleting featured image..."}
+                    {deleteProgress >= 40 && deleteProgress < 70 && "Deleting gallery images..."}
+                    {deleteProgress >= 70 && deleteProgress < 100 && "Deleting wedding details..."}
+                    {deleteProgress === 100 && "Deletion complete"}
+                    {" "}{deleteProgress}%
                   </div>
                 </div>
               )}
