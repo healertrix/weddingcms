@@ -437,13 +437,27 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
     setPreviewImageIndex(index);
   };
 
+  const hasAnyData = () => {
+    return formData.coupleNames.trim() !== '' ||
+      formData.weddingDate.trim() !== '' ||
+      formData.location.trim() !== '' ||
+      formData.featuredImageKey !== '' ||
+      (formData.gallery_images && formData.gallery_images.length > 0);
+  };
+
   return (
     <>
       <FormModal
         title={initialData ? 'Edit Wedding' : 'Add Wedding'}
-        onClose={() => handleSubmit(new Event('submit') as any, true)}
-        closeButtonLabel="Save as Draft"
-        icon={RiSaveLine}
+        onClose={() => {
+          if (hasAnyData()) {
+            handleSubmit(new Event('submit') as any, true);
+          } else {
+            onClose();
+          }
+        }}
+        closeButtonLabel={hasAnyData() ? "Save as Draft" : "Cancel"}
+        icon={hasAnyData() ? RiSaveLine : RiCloseLine}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <FormField label="Couple Names" required>
@@ -713,48 +727,52 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
           </FormField>
 
           <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
-            <Button 
-              variant="secondary" 
-              onClick={(e) => {
-                e.preventDefault();
-                handleSubmit(e, true);
-              }}
-              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-            >
-              Save as Draft
-            </Button>
-            <Button 
-              type="submit" 
-              icon={RiSaveLine}
-              disabled={!isFormComplete()}
-              onClick={(e) => {
-                e.preventDefault();
-                if (!isFormComplete()) {
-                  setShowIncompleteWarning(true);
-                  return;
-                }
-                handleSubmit(e, false);
-              }}
-              className={`${
-                isFormComplete()
-                  ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
-                  : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
-              }`}
-              title={
-                !isFormComplete()
-                  ? `Cannot publish: Missing ${getMissingFields().join(', ')}`
-                  : initialData ? 'Update wedding' : 'Publish wedding'
-              }
-            >
-              {!isFormComplete() ? (
-                <span className="flex items-center gap-1">
-                  <RiErrorWarningLine className="w-4 h-4" />
-                  Incomplete
-                </span>
-              ) : (
-                initialData ? 'Update Wedding' : 'Publish Wedding'
-              )}
-            </Button>
+            {hasAnyData() && (
+              <>
+                <Button 
+                  variant="secondary" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubmit(e, true);
+                  }}
+                  className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+                >
+                  Save as Draft
+                </Button>
+                <Button 
+                  type="submit" 
+                  icon={RiSaveLine}
+                  disabled={!isFormComplete()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (!isFormComplete()) {
+                      setShowIncompleteWarning(true);
+                      return;
+                    }
+                    handleSubmit(e, false);
+                  }}
+                  className={`${
+                    isFormComplete()
+                      ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
+                      : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
+                  }`}
+                  title={
+                    !isFormComplete()
+                      ? `Cannot publish: Missing ${getMissingFields().join(', ')}`
+                      : initialData ? 'Update wedding' : 'Publish wedding'
+                  }
+                >
+                  {!isFormComplete() ? (
+                    <span className="flex items-center gap-1">
+                      <RiErrorWarningLine className="w-4 h-4" />
+                      Incomplete
+                    </span>
+                  ) : (
+                    initialData ? 'Update Wedding' : 'Publish Wedding'
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         </form>
 

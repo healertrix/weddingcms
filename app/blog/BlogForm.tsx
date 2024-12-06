@@ -428,12 +428,30 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     }
   };
 
+  const hasAnyData = () => {
+    return formData.title.trim() !== '' ||
+      formData.slug.trim() !== '' ||
+      formData.content.trim() !== '' ||
+      formData.weddingDate.trim() !== '' ||
+      formData.location.trim() !== '' ||
+      formData.featuredImageKey !== '' ||
+      (formData.gallery_images && formData.gallery_images.length > 0);
+  };
+
   // Continue with the existing return statement, but add the modals at the end
   return (
     <>
       <FormModal
         title={initialData ? 'Edit Blog Post' : 'Add Blog Post'}
-        onClose={handleClose}
+        onClose={() => {
+          if (hasAnyData()) {
+            handleSubmit(new Event('submit') as any, true);
+          } else {
+            onClose();
+          }
+        }}
+        closeButtonLabel={hasAnyData() ? "Save as Draft" : "Cancel"}
+        icon={hasAnyData() ? RiSaveLine : RiCloseLine}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <FormField label="Title" required>
@@ -731,55 +749,52 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
           </FormField>
 
           <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
-            <Button 
-              variant="secondary" 
-              onClick={(e) => {
-                e.preventDefault();
-                handleSubmit(e, true);
-              }}
-              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-            >
-              Save as Draft
-            </Button>
-            <Button 
-              variant="secondary" 
-              onClick={handleClose}
-              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              icon={RiSaveLine}
-              disabled={!isFormComplete()}
-              onClick={(e) => {
-                e.preventDefault();
-                if (!isFormComplete()) {
-                  setShowIncompleteWarning(true);
-                  return;
-                }
-                handleSubmit(e, false);
-              }}
-              className={`${
-                isFormComplete()
-                  ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
-                  : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
-              }`}
-              title={
-                !isFormComplete()
-                  ? `Cannot publish: Missing ${getMissingFields().join(', ')}`
-                  : initialData ? 'Update blog post' : 'Publish blog post'
-              }
-            >
-              {!isFormComplete() ? (
-                <span className="flex items-center gap-1">
-                  <RiErrorWarningLine className="w-4 h-4" />
-                  Incomplete
-                </span>
-              ) : (
-                initialData ? 'Update Post' : 'Publish Post'
-              )}
-            </Button>
+            {hasAnyData() && (
+              <>
+                <Button 
+                  variant="secondary" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubmit(e, true);
+                  }}
+                  className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+                >
+                  Save as Draft
+                </Button>
+                <Button 
+                  type="submit" 
+                  icon={RiSaveLine}
+                  disabled={!isFormComplete()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (!isFormComplete()) {
+                      setShowIncompleteWarning(true);
+                      return;
+                    }
+                    handleSubmit(e, false);
+                  }}
+                  className={`${
+                    isFormComplete()
+                      ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
+                      : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
+                  }`}
+                  title={
+                    !isFormComplete()
+                      ? `Cannot publish: Missing ${getMissingFields().join(', ')}`
+                      : initialData ? 'Update blog post' : 'Publish blog post'
+                  }
+                >
+                  {!isFormComplete() ? (
+                    <span className="flex items-center gap-1">
+                      <RiErrorWarningLine className="w-4 h-4" />
+                      Incomplete
+                    </span>
+                  ) : (
+                    initialData ? 'Update Post' : 'Publish Post'
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         </form>
       </FormModal>
@@ -915,28 +930,27 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
           title="Title Required"
           message={
             <div className="space-y-4">
-              <p className="text-gray-600">A title is required to save your blog post.</p>
+              <p className="text-gray-600">A title is required even when saving as a draft.</p>
               <div className="bg-yellow-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 text-yellow-800">
+                <div className="flex items-center gap-2 text-[#8B4513]">
                   <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
-                  <p>If you close without adding a title, all uploaded images will be deleted.</p>
+                  <p>Please enter the title before saving.</p>
                 </div>
               </div>
             </div>
           }
-          confirmLabel="Add Title"
+          confirmLabel="OK"
           onConfirm={() => {
             setShowTitleWarning(false);
-            // Focus the title input after modal closes
             setTimeout(() => {
               titleInputRef.current?.focus();
             }, 100);
           }}
-          onCancel={() => {
-            setShowTitleWarning(false);
-            setShowImageDeleteWarning(true);
-          }}
+          onCancel={() => setShowTitleWarning(false)}
           confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          showCancelButton={false}
+          showCloseButton={false}
+          allowBackgroundCancel={false}
         />
       )}
 
