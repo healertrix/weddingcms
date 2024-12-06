@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
@@ -86,6 +86,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   const [isValidVideo, setIsValidVideo] = useState(false);
   const [initialFormData] = useState(formData);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const coupleNamesInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -118,7 +119,8 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       formData.weddingDate?.trim() !== '' &&
       formData.location?.trim() !== '' &&
       formData.review?.trim() !== '' &&
-      formData.videoUrl?.trim() !== ''
+      formData.videoUrl?.trim() !== '' &&
+      isValidVideo
     );
   };
 
@@ -132,7 +134,8 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
 
     const submissionData = {
       ...formData,
-      weddingDate: formData.weddingDate?.trim() || null
+      weddingDate: formData.weddingDate?.trim() || null,
+      videoUrl: isValidVideo ? formData.videoUrl.trim() : null
     };
 
     if (saveAsDraft) {
@@ -209,15 +212,47 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   };
 
   const hasUnsavedChanges = () => {
-    return JSON.stringify(initialFormData) !== JSON.stringify(formData);
+    if (!initialData) {
+      return formData.coupleNames !== '' ||
+        formData.weddingDate !== null ||
+        formData.location !== '' ||
+        formData.review !== '' ||
+        (formData.videoUrl !== '' && isValidVideo) ||
+        formData.imageUrl !== '';
+    }
+
+    // For editing existing data, compare with initial values but consider video validity
+    const currentData = {
+      ...formData,
+      videoUrl: isValidVideo ? formData.videoUrl : ''
+    };
+    const compareData = {
+      ...initialFormData,
+      videoUrl: getVideoId(initialFormData.videoUrl || '') ? initialFormData.videoUrl : ''
+    };
+    return JSON.stringify(compareData) !== JSON.stringify(currentData);
   };
 
   const handleClose = () => {
     if (hasUnsavedChanges()) {
-      setShowCloseConfirm(true);
+      if (!formData.coupleNames?.trim()) {
+        setShowCoupleNamesWarning(true);
+        return;
+      }
+      // Create a synthetic event object
+      const syntheticEvent = {
+        preventDefault: () => {},
+      } as React.FormEvent;
+      handleSubmit(syntheticEvent, true);
     } else {
       onClose();
     }
+  };
+
+  const focusCoupleNames = () => {
+    setTimeout(() => {
+      coupleNamesInputRef.current?.focus();
+    }, 100);
   };
 
   return (
@@ -225,12 +260,16 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       <FormModal
         title={initialData ? 'Edit Testimonial' : 'Add Testimonial'}
         onClose={handleClose}
+        closeButtonLabel={hasUnsavedChanges() ? "Save as Draft" : "Cancel"}
+        icon={hasUnsavedChanges() ? RiSaveLine : RiCloseLine}
+        hideHeader={true}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
             <FormField label="Couple Names" required>
               <div>
                 <Input
+                  ref={coupleNamesInputRef}
                   required
                   value={formData.coupleNames}
                   onChange={(e) => setFormData({ ...formData, coupleNames: e.target.value })}
@@ -368,47 +407,44 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
           </div>
 
           <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
-            <Button 
-              variant="secondary" 
-              onClick={(e) => {
-                e.preventDefault();
-                handleSubmit(e, true);
-              }}
-              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-            >
-              Save as Draft
-            </Button>
-            <Button 
-              variant="secondary" 
-              onClick={handleClose}
-              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              icon={RiSaveLine}
-              disabled={!isFormComplete()}
-              className={`${
-                isFormComplete()
-                  ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
-                  : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
-              }`}
-              title={
-                !isFormComplete()
-                  ? 'Cannot publish: Missing required fields or image'
-                  : initialData ? 'Update testimonial' : 'Publish testimonial'
-              }
-            >
-              {!isFormComplete() ? (
-                <span className="flex items-center gap-1">
-                  <RiErrorWarningLine className="w-4 h-4" />
-                  Incomplete
-                </span>
-              ) : (
-                initialData ? 'Update Testimonial' : 'Publish Testimonial'
-              )}
-            </Button>
+            {hasUnsavedChanges() && (
+              <Button 
+                variant="secondary" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleSubmit(e, true);
+                }}
+                className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+              >
+                Save as Draft
+              </Button>
+            )}
+            {hasUnsavedChanges() && (
+              <Button 
+                type="submit" 
+                icon={RiSaveLine}
+                disabled={!isFormComplete()}
+                className={`${
+                  isFormComplete()
+                    ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
+                    : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
+                }`}
+                title={
+                  !isFormComplete()
+                    ? 'Cannot publish: Missing required fields or image'
+                    : initialData ? 'Update testimonial' : 'Publish testimonial'
+                }
+              >
+                {!isFormComplete() ? (
+                  <span className="flex items-center gap-1">
+                    <RiErrorWarningLine className="w-4 h-4" />
+                    Incomplete
+                  </span>
+                ) : (
+                  initialData ? 'Update Testimonial' : 'Publish Testimonial'
+                )}
+              </Button>
+            )}
           </div>
         </form>
       </FormModal>
@@ -486,25 +522,6 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
         />
       )}
 
-      {showCloseConfirm && (
-        <ConfirmModal
-          title="Unsaved Changes"
-          message="You have unsaved changes. What would you like to do?"
-          confirmLabel="Save Changes"
-          onConfirm={(e) => {
-            setShowCloseConfirm(false);
-            handleSubmit(e as any, true);
-          }}
-          onCancel={() => {
-            setShowCloseConfirm(false);
-            onClose();
-          }}
-          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
-          showCloseButton={true}
-          onCloseButtonClick={() => setShowCloseConfirm(false)}
-        />
-      )}
-
       {showCoupleNamesWarning && (
         <ConfirmModal
           title="Couple Names Required"
@@ -520,8 +537,14 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
             </div>
           }
           confirmLabel="OK"
-          onConfirm={() => setShowCoupleNamesWarning(false)}
-          onCancel={() => setShowCoupleNamesWarning(false)}
+          onConfirm={() => {
+            setShowCoupleNamesWarning(false);
+            focusCoupleNames();
+          }}
+          onCancel={() => {
+            setShowCoupleNamesWarning(false);
+            focusCoupleNames();
+          }}
           confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
           showCancelButton={false}
         />
