@@ -75,57 +75,38 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
 
   const handleSubmit = async (e: React.FormEvent, saveAsDraft: boolean) => {
     e.preventDefault();
-    let debugInfo = `Submit type: ${saveAsDraft ? 'Draft' : 'Publish'}\n\n`;
-    debugInfo += `Form Data:\n${JSON.stringify(formData, null, 2)}\n\n`;
 
     // First check if we can save as draft
     if (saveAsDraft && !formData.coupleNames.trim()) {
-      debugInfo += 'Validation Failed: Missing couple names for draft';
-      setErrorDetails(debugInfo);
       setShowCoupleNamesWarning(true);
       return;
     }
 
     // Then check if we can publish
     if (!saveAsDraft && !isFormComplete()) {
-      debugInfo += `Validation Failed: Missing fields - ${getMissingFields().join(', ')}`;
-      setErrorDetails(debugInfo);
       setShowIncompleteWarning(true);
       return;
     }
 
     try {
-      debugInfo += 'Preparing submission data...\n';
-      const postData = {
+      // Transform the data to match database columns
+      const transformedData = {
         ...formData,
-        featured_image_key: formData.featuredImageKey || null,
-        featured_image_url: formData.featuredImageUrl || null,
-        wedding_date: formData.weddingDate || null,
-        location: formData.location || null,
+        couple_names: formData.coupleNames.trim(),
+        wedding_date: formData.weddingDate,
+        featured_image_key: formData.featuredImageKey,
+        is_featured_home: formData.isFeaturedHome,
         gallery_images: formData.gallery_images || [],
         status: saveAsDraft ? 'draft' : 'published'
       };
-      debugInfo += `Post Data:\n${JSON.stringify(postData, null, 2)}`;
 
       if (saveAsDraft) {
-        debugInfo += '\nAttempting to save as draft...';
-        await onSaveAsDraft(formData);
-        debugInfo += '\nDraft saved successfully';
+        await onSaveAsDraft(transformedData);
       } else {
-        debugInfo += '\nAttempting to publish...';
-        await onSubmit(formData);
-        debugInfo += '\nPublished successfully';
+        await onSubmit(transformedData);
       }
     } catch (error) {
-      debugInfo += '\n\nError occurred:';
-      if (error instanceof Error) {
-        debugInfo += `\nMessage: ${error.message}`;
-        debugInfo += `\nStack: ${error.stack}`;
-      } else {
-        debugInfo += `\nUnknown error: ${JSON.stringify(error)}`;
-      }
-      setErrorDetails(debugInfo);
-      setShowErrorAlert(true);
+      console.error('Error in handleSubmit:', error);
     }
   };
 
@@ -139,11 +120,11 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
   };
 
   const handleGalleryImagesUpload = (files: Array<{ key: string; url: string }>) => {
-    const newGalleryImages = files.map(file => file.url);
-    setFormData({
-      ...formData,
-      gallery_images: [...formData.gallery_images, ...newGalleryImages]
-    });
+    const newUrls = files.map(file => file.url);
+    setFormData(prevData => ({
+      ...prevData,
+      gallery_images: [...(prevData.gallery_images || []), ...newUrls]
+    }));
   };
 
   const handleDeleteClick = () => {
@@ -297,11 +278,12 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
   };
 
   const handleCleanupAndClose = async () => {
-    if (!formData.featuredImageUrl && (!formData.gallery_images || formData.gallery_images.length === 0)) {
+    if (!formData.featuredImageKey && (!formData.gallery_images || formData.gallery_images.length === 0)) {
       onClose();
       return;
     }
 
+    // Only delete images if this is a new post without a title
     const isNewPost = !initialData;
     const hasCoupleNames = formData.coupleNames.trim() !== '';
     
@@ -325,14 +307,14 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
       }, 100);
 
       // Delete featured image if exists
-      if (formData.featuredImageUrl) {
+      if (formData.featuredImageKey) {
         setDeleteProgress(20);
         const featuredResponse = await fetch('/api/upload/delete', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ imageKey: formData.featuredImageUrl }),
+          body: JSON.stringify({ imageKey: formData.featuredImageKey }),
         });
 
         if (!featuredResponse.ok) {
@@ -340,9 +322,9 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
         }
       }
 
-      // Delete gallery images if they exist
+      // Delete gallery images if exist
       if (formData.gallery_images && formData.gallery_images.length > 0) {
-        setDeleteProgress(50);
+        setDeleteProgress(40);
         for (const imageUrl of formData.gallery_images) {
           const galleryResponse = await fetch('/api/upload/delete', {
             method: 'POST',
@@ -359,13 +341,16 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
       }
 
       setDeleteProgress(100);
+      
       setTimeout(() => {
+        setIsDeleting(false);
+        setDeleteProgress(0);
+        setShowImageDeleteWarning(false);
         onClose();
       }, 500);
 
     } catch (error) {
       console.error('Error cleaning up images:', error);
-    } finally {
       setIsDeleting(false);
       setDeleteProgress(0);
     }
@@ -559,7 +544,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                 onChange={handleGalleryImagesUpload}
                 value={formData.gallery_images}
                 disabled={isDeleting}
-                folder="weddings"
+                folder="weddinggallery"
                 multiple={true}
                 hidePreview={true}
               />
@@ -751,7 +736,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
 
         {showDeleteImageConfirm && (
           <ConfirmModal
-            title="⚠️ Delete Image Permanently"
+            title="️ Delete Image Permanently"
             message={
               <div className="space-y-4">
                 <div className="space-y-4">

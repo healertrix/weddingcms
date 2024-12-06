@@ -18,6 +18,7 @@ interface Wedding {
   location: string;
   featured_image_key: string | null;
   is_featured_home: boolean;
+  gallery_images: string[];
   status: 'draft' | 'published';
 }
 
@@ -146,7 +147,7 @@ export default function WeddingsPage() {
         wedding_date: data.weddingDate?.trim() || null,
         location: data.location?.trim() || null,
         featured_image_key: data.featuredImageKey?.trim() || null,
-        gallery_images: Array.isArray(data.galleryImages) ? data.galleryImages : [],
+        gallery_images: data.gallery_images || [],
         is_featured_home: Boolean(data.isFeaturedHome),
         status: saveAsDraft ? 'draft' : 'published'
       };
@@ -386,7 +387,7 @@ export default function WeddingsPage() {
             weddingDate: editingWedding.wedding_date,
             location: editingWedding.location,
             featuredImageKey: editingWedding.featured_image_key || '',
-            galleryImages: [],
+            gallery_images: editingWedding.gallery_images || [],
             isFeaturedHome: editingWedding.is_featured_home || false
           } : undefined}
         />
