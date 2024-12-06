@@ -135,28 +135,47 @@ export default function WeddingsPage() {
 
   const handleSubmit = async (data: WeddingFormData, saveAsDraft: boolean = false) => {
     try {
+      // Only validate couple_names as required
+      if (!data.coupleNames?.trim()) {
+        throw new Error('Couple names is required');
+      }
+
+      // Format the data with nullable fields
       const weddingData = {
-        couple_names: data.coupleNames,
-        wedding_date: data.weddingDate,
-        location: data.location,
-        featured_image_key: data.featuredImageKey || null,
-        is_featured_home: data.isFeaturedHome,
+        couple_names: data.coupleNames.trim(),
+        wedding_date: data.weddingDate?.trim() || null,
+        location: data.location?.trim() || null,
+        featured_image_key: data.featuredImageKey?.trim() || null,
+        gallery_images: Array.isArray(data.galleryImages) ? data.galleryImages : [],
+        is_featured_home: Boolean(data.isFeaturedHome),
         status: saveAsDraft ? 'draft' : 'published'
       };
 
+      console.log('Submitting wedding data:', weddingData);
+
       if (editingWedding) {
-        const { error } = await supabase
+        const { data: updateData, error } = await supabase
           .from('weddings')
           .update(weddingData)
-          .eq('id', editingWedding.id);
+          .eq('id', editingWedding.id)
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating wedding:', error);
+          throw new Error(error.message);
+        }
+        console.log('Wedding updated successfully:', updateData);
       } else {
-        const { error } = await supabase
+        const { data: insertData, error } = await supabase
           .from('weddings')
-          .insert([weddingData]);
+          .insert([weddingData])
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating wedding:', error);
+          throw new Error(error.message);
+        }
+        console.log('Wedding created successfully:', insertData);
       }
 
       await fetchWeddings();
@@ -165,6 +184,7 @@ export default function WeddingsPage() {
       router.refresh();
     } catch (error) {
       console.error('Error in handleSubmit:', error);
+      throw error instanceof Error ? error : new Error('An unknown error occurred');
     }
   };
 

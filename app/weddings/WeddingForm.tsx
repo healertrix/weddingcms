@@ -1,13 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine } from 'react-icons/ri';
+import { RiSaveLine, RiCloseLine, RiErrorWarningLine, RiZoomInLine, RiArrowLeftSLine, RiArrowRightSLine, RiDragMove2Line } from 'react-icons/ri';
 import ImageDropzone from '../components/forms/ImageDropzone';
 import FormModal from '../components/forms/FormModal';
+import TextEditor from '../components/forms/TextEditor';
 import { Switch } from '../components/forms/Switch';
+import ConfirmModal from '../components/ConfirmModal';
 
 type WeddingFormProps = {
   onClose: () => void;
@@ -20,131 +23,1000 @@ export interface WeddingFormData {
   coupleNames: string;
   weddingDate: string;
   location: string;
-  featuredImageKey: string;
-  galleryImages: Array<{
-    key: string;
-    order_index: number;
-    alt_text?: string;
-  }>;
+  featuredImageKey?: string;
+  featuredImageUrl?: string;
+  gallery_images: string[];
   isFeaturedHome: boolean;
 }
 
 export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialData }: WeddingFormProps) {
+  const coupleNamesInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<WeddingFormData>({
     coupleNames: initialData?.coupleNames || '',
     weddingDate: initialData?.weddingDate || '',
     location: initialData?.location || '',
     featuredImageKey: initialData?.featuredImageKey || '',
-    galleryImages: initialData?.galleryImages || [],
+    featuredImageUrl: initialData?.featuredImageUrl || '',
+    gallery_images: Array.isArray(initialData?.gallery_images) ? initialData.gallery_images : [],
     isFeaturedHome: initialData?.isFeaturedHome || false
   });
+  const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showCoupleNamesWarning, setShowCoupleNamesWarning] = useState(false);
+  const [showImageDeleteWarning, setShowImageDeleteWarning] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState(0);
+  const [initialFormData] = useState(formData);
+  const [showIncompleteWarning, setShowIncompleteWarning] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImageIndex, setPreviewImageIndex] = useState<number>(-1);
+  const [deleteImageIndex, setDeleteImageIndex] = useState<number | null>(null);
+  const [showUnsavedChangesWarning, setShowUnsavedChangesWarning] = useState(false);
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<string>('');
 
-  const handleSubmit = (e: React.FormEvent, asDraft: boolean = false) => {
+  const isFormComplete = () => {
+    const requiredFields = {
+      coupleNames: formData.coupleNames.trim() !== '',
+      weddingDate: formData.weddingDate.trim() !== '',
+      location: formData.location.trim() !== '',
+      featuredImage: !!formData.featuredImageKey
+    };
+
+    return Object.values(requiredFields).every(field => field);
+  };
+
+  const getMissingFields = () => {
+    const missingFields = [];
+    if (!formData.coupleNames.trim()) missingFields.push('Couple Names');
+    if (!formData.weddingDate.trim()) missingFields.push('Wedding Date');
+    if (!formData.location.trim()) missingFields.push('Location');
+    if (!formData.featuredImageKey) missingFields.push('Featured Image');
+    return missingFields;
+  };
+
+  const handleSubmit = async (e: React.FormEvent, saveAsDraft: boolean) => {
     e.preventDefault();
-    if (asDraft) {
-      onSaveAsDraft(formData);
-    } else {
-      onSubmit(formData);
+    let debugInfo = `Submit type: ${saveAsDraft ? 'Draft' : 'Publish'}\n\n`;
+    debugInfo += `Form Data:\n${JSON.stringify(formData, null, 2)}\n\n`;
+
+    // First check if we can save as draft
+    if (saveAsDraft && !formData.coupleNames.trim()) {
+      debugInfo += 'Validation Failed: Missing couple names for draft';
+      setErrorDetails(debugInfo);
+      setShowCoupleNamesWarning(true);
+      return;
+    }
+
+    // Then check if we can publish
+    if (!saveAsDraft && !isFormComplete()) {
+      debugInfo += `Validation Failed: Missing fields - ${getMissingFields().join(', ')}`;
+      setErrorDetails(debugInfo);
+      setShowIncompleteWarning(true);
+      return;
+    }
+
+    try {
+      debugInfo += 'Preparing submission data...\n';
+      const postData = {
+        ...formData,
+        featured_image_key: formData.featuredImageKey || null,
+        featured_image_url: formData.featuredImageUrl || null,
+        wedding_date: formData.weddingDate || null,
+        location: formData.location || null,
+        gallery_images: formData.gallery_images || [],
+        status: saveAsDraft ? 'draft' : 'published'
+      };
+      debugInfo += `Post Data:\n${JSON.stringify(postData, null, 2)}`;
+
+      if (saveAsDraft) {
+        debugInfo += '\nAttempting to save as draft...';
+        await onSaveAsDraft(formData);
+        debugInfo += '\nDraft saved successfully';
+      } else {
+        debugInfo += '\nAttempting to publish...';
+        await onSubmit(formData);
+        debugInfo += '\nPublished successfully';
+      }
+    } catch (error) {
+      debugInfo += '\n\nError occurred:';
+      if (error instanceof Error) {
+        debugInfo += `\nMessage: ${error.message}`;
+        debugInfo += `\nStack: ${error.stack}`;
+      } else {
+        debugInfo += `\nUnknown error: ${JSON.stringify(error)}`;
+      }
+      setErrorDetails(debugInfo);
+      setShowErrorAlert(true);
     }
   };
 
+  const handleFeaturedImageUpload = (files: Array<{ key: string; url: string }>) => {
+    if (files.length > 0) {
+      setFormData({
+        ...formData,
+        featuredImageKey: files[0].url,
+        featuredImageUrl: files[0].url
+      });
+    }
+  };
+
+  const handleGalleryImagesUpload = (files: Array<{ key: string; url: string }>) => {
+    const newGalleryImages = files.map(file => file.url);
+    setFormData({
+      ...formData,
+      gallery_images: [...formData.gallery_images, ...newGalleryImages]
+    });
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteImageConfirm(true);
+  };
+
+  const handleImageDelete = async () => {
+    if (formData.featuredImageKey && !isDeleting) {
+      setIsDeleting(true);
+      setDeleteProgress(0);
+      
+      try {
+        const progressInterval = setInterval(() => {
+          setDeleteProgress(prev => {
+            if (prev >= 90) {
+              clearInterval(progressInterval);
+              return 90;
+            }
+            return prev + 10;
+          });
+        }, 100);
+
+        const response = await fetch('/api/upload/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageKey: formData.featuredImageKey }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete image');
+        }
+
+        setDeleteProgress(100);
+        setTimeout(() => {
+          setFormData({
+            ...formData,
+            featuredImageKey: '',
+            featuredImageUrl: ''
+          });
+          setShowDeleteImageConfirm(false);
+          setIsDeleting(false);
+          setDeleteProgress(0);
+        }, 500);
+
+        clearInterval(progressInterval);
+      } catch (error) {
+        console.error('Error deleting image:', error);
+        setDeleteProgress(0);
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  const handleGalleryImageDelete = async (index: number) => {
+    const imageToDelete = formData.gallery_images[index];
+    if (!imageToDelete || isDeleting) return;
+
+    setIsDeleting(true);
+    setDeleteProgress(0);
+    
+    try {
+      const progressInterval = setInterval(() => {
+        setDeleteProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
+      const response = await fetch('/api/upload/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageKey: imageToDelete }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete gallery image');
+      }
+
+      setDeleteProgress(100);
+      setTimeout(() => {
+        const newGalleryImages = [...formData.gallery_images];
+        newGalleryImages.splice(index, 1);
+        setFormData({
+          ...formData,
+          gallery_images: newGalleryImages
+        });
+        setDeleteImageIndex(null);
+        setIsDeleting(false);
+        setDeleteProgress(0);
+      }, 500);
+
+      clearInterval(progressInterval);
+    } catch (error) {
+      console.error('Error deleting gallery image:', error);
+      setDeleteProgress(0);
+      setIsDeleting(false);
+    }
+  };
+
+  const hasUnsavedChanges = () => {
+    const { gallery_images: currentGallery, ...currentDataWithoutGallery } = formData;
+    const { gallery_images: initialGallery, ...initialDataWithoutGallery } = initialFormData;
+    
+    return JSON.stringify(initialDataWithoutGallery) !== JSON.stringify(currentDataWithoutGallery);
+  };
+
+  const handleClose = () => {
+    const hasCoupleNames = formData.coupleNames.trim() !== '';
+    const hasImages = (formData.featuredImageUrl || (formData.gallery_images && formData.gallery_images.length > 0));
+    const isNewPost = !initialData;
+
+    if (hasImages && !hasCoupleNames && isNewPost) {
+      setShowCoupleNamesWarning(true);
+    } else if (hasUnsavedChanges()) {
+      setShowUnsavedChangesWarning(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleCleanupAndClose = async () => {
+    if (!formData.featuredImageUrl && (!formData.gallery_images || formData.gallery_images.length === 0)) {
+      onClose();
+      return;
+    }
+
+    const isNewPost = !initialData;
+    const hasCoupleNames = formData.coupleNames.trim() !== '';
+    
+    if (!isNewPost || hasCoupleNames) {
+      onClose();
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteProgress(0);
+
+    try {
+      const progressInterval = setInterval(() => {
+        setDeleteProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
+      // Delete featured image if exists
+      if (formData.featuredImageUrl) {
+        setDeleteProgress(20);
+        const featuredResponse = await fetch('/api/upload/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageKey: formData.featuredImageUrl }),
+        });
+
+        if (!featuredResponse.ok) {
+          throw new Error('Failed to delete featured image');
+        }
+      }
+
+      // Delete gallery images if they exist
+      if (formData.gallery_images && formData.gallery_images.length > 0) {
+        setDeleteProgress(50);
+        for (const imageUrl of formData.gallery_images) {
+          const galleryResponse = await fetch('/api/upload/delete', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ imageKey: imageUrl }),
+          });
+
+          if (!galleryResponse.ok) {
+            throw new Error('Failed to delete gallery image');
+          }
+        }
+      }
+
+      setDeleteProgress(100);
+      setTimeout(() => {
+        onClose();
+      }, 500);
+
+    } catch (error) {
+      console.error('Error cleaning up images:', error);
+    } finally {
+      setIsDeleting(false);
+      setDeleteProgress(0);
+    }
+  };
+
+  const handleNavigatePreview = (direction: 'prev' | 'next') => {
+    if (!formData.gallery_images || previewImageIndex === -1) return;
+    
+    let newIndex = previewImageIndex;
+    if (direction === 'prev') {
+      newIndex = newIndex > 0 ? newIndex - 1 : formData.gallery_images.length - 1;
+    } else {
+      newIndex = newIndex < formData.gallery_images.length - 1 ? newIndex + 1 : 0;
+    }
+    
+    setPreviewImageIndex(newIndex);
+    setPreviewImage(formData.gallery_images[newIndex]);
+  };
+
+  const handleKeyPress = (e: KeyboardEvent) => {
+    if (previewImage) {
+      if (e.key === 'ArrowLeft') {
+        handleNavigatePreview('prev');
+      } else if (e.key === 'ArrowRight') {
+        handleNavigatePreview('next');
+      } else if (e.key === 'Escape') {
+        setPreviewImage(null);
+        setPreviewImageIndex(-1);
+      }
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [previewImage, previewImageIndex, formData.gallery_images]);
+
+  const handleDragEnd = (result: any) => {
+    const { destination, source } = result;
+
+    if (!destination) return;
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const newItems = Array.from(formData.gallery_images);
+    const [removed] = newItems.splice(source.index, 1);
+    newItems.splice(destination.index, 0, removed);
+
+    setFormData(prevData => ({
+      ...prevData,
+      gallery_images: newItems
+    }));
+  };
+
+  const handleImageDeleteClick = (index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeleteImageIndex(index);
+    setShowImageDeleteWarning(true);
+  };
+
+  const handlePreviewImage = (imageUrl: string, index: number) => {
+    setPreviewImage(imageUrl);
+    setPreviewImageIndex(index);
+  };
+
   return (
-    <FormModal
-      title={initialData ? 'Edit Wedding Gallery' : 'Add Wedding Gallery'}
-      onClose={onClose}
-    >
-      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
-        <div className="grid grid-cols-2 gap-6">
+    <>
+      <FormModal
+        title={initialData ? 'Edit Wedding' : 'Add Wedding'}
+        onClose={handleClose}
+      >
+        <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <FormField label="Couple Names" required>
             <Input
+              ref={coupleNamesInputRef}
               required
               value={formData.coupleNames}
-              onChange={(e) => setFormData({ ...formData, coupleNames: e.target.value })}
-              placeholder="e.g., Sarah & John"
+              onChange={(e) => {
+                const names = e.target.value;
+                setFormData({
+                  ...formData,
+                  coupleNames: names
+                });
+              }}
+              placeholder="Enter couple names"
             />
           </FormField>
 
-          <FormField label="Wedding Date" required>
-            <Input
-              type="date"
-              required
-              value={formData.weddingDate}
-              onChange={(e) => setFormData({ ...formData, weddingDate: e.target.value })}
-            />
-          </FormField>
-        </div>
+          <div className="grid grid-cols-2 gap-6">
+            <FormField label="Wedding Date" required>
+              <Input
+                type="date"
+                required
+                value={formData.weddingDate}
+                onChange={(e) => setFormData({ ...formData, weddingDate: e.target.value })}
+              />
+            </FormField>
 
-        <FormField label="Location" required>
-          <Input
-            required
-            value={formData.location}
-            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-            placeholder="e.g., Mumbai, India"
-          />
-        </FormField>
-
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium text-gray-900">Featured on Home</h4>
-              <p className="text-sm text-gray-500">Show this wedding on the home page</p>
-            </div>
-            <Switch
-              checked={formData.isFeaturedHome}
-              onChange={(checked) => setFormData({ ...formData, isFeaturedHome: checked })}
-            />
+            <FormField label="Location" required>
+              <Input
+                required
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="e.g., Mumbai, India"
+              />
+            </FormField>
           </div>
-        </div>
 
-        <FormField 
-          label="Featured Image" 
-          required
-          description="This will be the main image for the wedding gallery"
-        >
-          <ImageDropzone
-            onChange={(files) => setFormData({ ...formData, featuredImageKey: files[0]?.key || '' })}
-            value={formData.featuredImageKey}
-            multiple={false}
-          />
-        </FormField>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-gray-900">Featured on Home</h4>
+                <p className="text-sm text-gray-500">Show this wedding on the home page</p>
+              </div>
+              <Switch
+                checked={formData.isFeaturedHome}
+                onChange={(checked) => setFormData({ ...formData, isFeaturedHome: checked })}
+              />
+            </div>
+          </div>
 
-        <FormField 
-          label="Gallery Images"
-          description="Add multiple images to the wedding gallery"
-        >
-          <ImageDropzone
-            multiple
-            onChange={(files) => {
-              const galleryImages = files.map((file, index) => ({
-                key: file.key,
-                order_index: index,
-                alt_text: `${formData.coupleNames} wedding image ${index + 1}`
-              }));
-              setFormData({ ...formData, galleryImages });
+          <FormField label="Featured Image" required>
+            <div className="space-y-2">
+              {formData.featuredImageUrl ? (
+                <div className="relative aspect-video rounded-lg overflow-hidden group">
+                  <img
+                    src={formData.featuredImageUrl}
+                    alt="Featured image"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPreviewImage(formData.featuredImageUrl || null);
+                        }}
+                        className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
+                        aria-label="View full size"
+                        title="View full size"
+                        type="button"
+                      >
+                        <RiZoomInLine size={20} />
+                      </button>
+                      {!isDeleting && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleDeleteClick();
+                          }}
+                          className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
+                          disabled={isDeleting}
+                          aria-label="Delete image"
+                          title="Delete image"
+                          type="button"
+                        >
+                          <RiCloseLine size={20} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <ImageDropzone
+                  onChange={handleFeaturedImageUpload}
+                  maxFiles={1}
+                  onDelete={handleDeleteClick}
+                  disabled={isDeleting}
+                  folder="weddings"
+                  multiple={false}
+                />
+              )}
+              {isDeleting && (
+                <div className="mt-2">
+                  <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                      style={{ width: `${deleteProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Deleting image... {deleteProgress}%
+                  </p>
+                </div>
+              )}
+            </div>
+          </FormField>
+
+          <FormField label="Gallery Images">
+            <div className="space-y-4">
+              <ImageDropzone
+                onChange={handleGalleryImagesUpload}
+                value={formData.gallery_images}
+                disabled={isDeleting}
+                folder="weddings"
+                multiple={true}
+                hidePreview={true}
+              />
+              <p className="text-sm text-gray-500 mb-4">
+                Upload images for the wedding gallery ({formData.gallery_images?.length || 0} uploaded)
+              </p>
+              
+              {formData.gallery_images && formData.gallery_images.length > 0 && (
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-gray-900 mb-4">
+                    Gallery Preview (Drag images to reorder)
+                  </h4>
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable
+                      droppableId="gallery"
+                      direction="horizontal"
+                      renderClone={(provided, snapshot, rubric) => (
+                        <div
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          ref={provided.innerRef}
+                          className="relative aspect-video rounded-lg overflow-hidden shadow-2xl"
+                          style={{
+                            ...provided.draggableProps.style,
+                            width: '300px',
+                            height: '180px',
+                          }}
+                        >
+                          <img
+                            src={formData.gallery_images[rubric.source.index]}
+                            alt={`Gallery image ${rubric.source.index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-30">
+                            <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm">
+                              {rubric.source.index + 1}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    >
+                      {(provided) => (
+                        <div 
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className="flex items-start gap-6 overflow-x-auto pb-4 min-h-[160px]"
+                        >
+                          {formData.gallery_images.map((imageUrl, index) => (
+                            <Draggable 
+                              key={`${imageUrl}-${index}`} 
+                              draggableId={`${imageUrl}-${index}`} 
+                              index={index}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  style={{
+                                    ...provided.draggableProps.style,
+                                    width: '300px',
+                                    height: snapshot.isDragging ? '180px' : 'auto',
+                                  }}
+                                  className={`
+                                    relative aspect-video rounded-lg overflow-hidden group flex-shrink-0
+                                    ${snapshot.isDragging ? 'opacity-0' : 'opacity-100'}
+                                    hover:ring-2 hover:ring-[#8B4513] transition-all
+                                  `}
+                                >
+                                  {/* Image number */}
+                                  <div className="absolute top-2 left-2 z-30 bg-black bg-opacity-75 text-white px-2 py-1 rounded-full text-sm font-medium">
+                                    {index + 1}
+                                  </div>
+
+                                  {/* Drag handle overlay - centered */}
+                                  <div
+                                    {...provided.dragHandleProps}
+                                    className="absolute inset-0 z-20 cursor-move flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                  >
+                                    <div className="bg-black bg-opacity-50 rounded-lg p-2 transform scale-75 group-hover:scale-100 transition-all duration-200">
+                                      <RiDragMove2Line className="w-6 h-6 text-white" />
+                                    </div>
+                                  </div>
+
+                                  <img
+                                    src={imageUrl}
+                                    alt={`Gallery image ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+
+                                  {/* Controls overlay */}
+                                  <div 
+                                    className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all"
+                                  >
+                                    {/* Control buttons container */}
+                                    <div className="absolute top-2 right-2 flex items-center gap-2 z-30">
+                                      {/* Preview button */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handlePreviewImage(imageUrl, index);
+                                        }}
+                                        className="p-1.5 bg-white rounded-full text-gray-600 opacity-0 group-hover:opacity-100 hover:bg-gray-100 shadow-lg transition-all"
+                                        type="button"
+                                        aria-label={`Preview gallery image ${index + 1}`}
+                                        title="Preview image"
+                                      >
+                                        <RiZoomInLine size={16} />
+                                      </button>
+
+                                      {/* Delete button */}
+                                      <button
+                                        onClick={(e) => handleImageDeleteClick(index, e)}
+                                        className="p-1.5 bg-white rounded-full text-red-600 opacity-0 group-hover:opacity-100 hover:bg-red-50 shadow-lg transition-all"
+                                        type="button"
+                                        aria-label={`Delete gallery image ${index + 1}`}
+                                        title="Delete image"
+                                      >
+                                        <RiCloseLine size={16} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                </div>
+              )}
+            </div>
+          </FormField>
+
+          <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
+            <Button 
+              variant="secondary" 
+              onClick={(e) => {
+                e.preventDefault();
+                handleSubmit(e, true);
+              }}
+              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+            >
+              Save as Draft
+            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={handleClose}
+              className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              icon={RiSaveLine}
+              disabled={!isFormComplete()}
+              onClick={(e) => {
+                e.preventDefault();
+                if (!isFormComplete()) {
+                  setShowIncompleteWarning(true);
+                  return;
+                }
+                handleSubmit(e, false);
+              }}
+              className={`${
+                isFormComplete()
+                  ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
+                  : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
+              }`}
+              title={
+                !isFormComplete()
+                  ? `Cannot publish: Missing ${getMissingFields().join(', ')}`
+                  : initialData ? 'Update wedding' : 'Publish wedding'
+              }
+            >
+              {!isFormComplete() ? (
+                <span className="flex items-center gap-1">
+                  <RiErrorWarningLine className="w-4 h-4" />
+                  Incomplete
+                </span>
+              ) : (
+                initialData ? 'Update Wedding' : 'Publish Wedding'
+              )}
+            </Button>
+          </div>
+        </form>
+
+        {showDeleteImageConfirm && (
+          <ConfirmModal
+            title="⚠️ Delete Image Permanently"
+            message={
+              <div className="space-y-4">
+                <div className="space-y-4">
+                  <p>Are you sure you want to delete this image?</p>
+                  <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                    <div className="font-medium text-red-800">This will permanently delete:</div>
+                    <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                      {deleteImageIndex === null ? (
+                        <li>The featured image</li>
+                      ) : (
+                        <li>The gallery image</li>
+                      )}
+                      <li>The image from storage</li>
+                    </ul>
+                    <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                  </div>
+                </div>
+                {isDeleting && (
+                  <div className="mt-4">
+                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-red-600 transition-all duration-300 ease-out"
+                        style={{ width: `${deleteProgress}%` }}
+                      />
+                    </div>
+                    <div className="text-sm text-gray-500 mt-2 text-center">
+                      Deleting image... {deleteProgress}%
+                    </div>
+                  </div>
+                )}
+              </div>
+            }
+            confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
+            onConfirm={() => {
+              if (!isDeleting) {
+                if (deleteImageIndex !== null) {
+                  handleGalleryImageDelete(deleteImageIndex);
+                } else {
+                  handleImageDelete();
+                }
+              }
             }}
-            value={formData.galleryImages?.map(img => img.key)}
-            accept="image/*"
+            onCancel={() => {
+              if (!isDeleting) {
+                setShowDeleteImageConfirm(false);
+                setDeleteImageIndex(null);
+              }
+            }}
+            confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
+              isDeleting ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            disabled={isDeleting}
+            showCancelButton={!isDeleting}
+            allowBackgroundCancel={!isDeleting}
           />
-        </FormField>
+        )}
 
-        <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
-          <Button 
-            variant="secondary" 
-            onClick={(e) => {
-              e.preventDefault();
-              handleSubmit(e, true);
+        {showCoupleNamesWarning && (
+          <ConfirmModal
+            title="Couple Names Required"
+            message={
+              <div className="space-y-4">
+                <p className="text-gray-600">A couple names is required to save your wedding.</p>
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 text-yellow-800">
+                    <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                    <p>If you close without adding couple names, all uploaded images will be deleted.</p>
+                  </div>
+                </div>
+              </div>
+            }
+            confirmLabel="Add Couple Names"
+            onConfirm={() => {
+              setShowCoupleNamesWarning(false);
+              // Focus the title input after modal closes
+              setTimeout(() => {
+                coupleNamesInputRef.current?.focus();
+              }, 100);
+            }}
+            onCancel={() => {
+              setShowCoupleNamesWarning(false);
+              setShowImageDeleteWarning(true);
+            }}
+            confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          />
+        )}
+
+        {showImageDeleteWarning && (
+          <ConfirmModal
+            title="⚠️ Delete Uploaded Images"
+            message={
+              <div className="space-y-4">
+                <div className="space-y-4">
+                  <p>Are you sure you want to close without saving?</p>
+                  <div className="bg-red-50 p-4 rounded-lg space-y-2">
+                    <div className="font-medium text-red-800">This will permanently delete:</div>
+                    <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                      {formData.featuredImageUrl && <li>The featured image</li>}
+                      {formData.gallery_images && formData.gallery_images.length > 0 && (
+                        <li>All uploaded gallery images ({formData.gallery_images.length} images)</li>
+                      )}
+                    </ul>
+                    <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                  </div>
+                </div>
+                {isDeleting && (
+                  <div className="mt-4">
+                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-red-600 transition-all duration-300 ease-out"
+                        style={{ width: `${deleteProgress}%` }}
+                      />
+                    </div>
+                    <div className="text-sm text-gray-500 mt-2 text-center">
+                      Deleting images... {deleteProgress}%
+                    </div>
+                  </div>
+                )}
+              </div>
+            }
+            confirmLabel={isDeleting ? "Deleting..." : "Delete and Close"}
+            onConfirm={handleCleanupAndClose}
+            onCancel={() => {
+              if (!isDeleting) {
+                setShowImageDeleteWarning(false);
+              }
+            }}
+            confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
+              isDeleting ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            disabled={isDeleting}
+            showCancelButton={!isDeleting}
+            allowBackgroundCancel={!isDeleting}
+          />
+        )}
+
+        {showUnsavedChangesWarning && (
+          <ConfirmModal
+            title="Unsaved Changes"
+            message={
+              <div className="space-y-4">
+                <p className="text-gray-600">You have unsaved changes. What would you like to do?</p>
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 text-yellow-800">
+                    <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                    <p>Choose to save your changes or close without saving.</p>
+                  </div>
+                </div>
+              </div>
+            }
+            confirmLabel="Save"
+            onConfirm={(e) => {
+              setShowUnsavedChangesWarning(false);
+              handleSubmit(e as any, true);
+            }}
+            onCancel={() => {
+              setShowUnsavedChangesWarning(false);
+              onClose();
+            }}
+            confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+            showCancelButton={true}
+            cancelLabel="Exit without saving"
+          />
+        )}
+
+        {showIncompleteWarning && (
+          <ConfirmModal
+            title="Cannot Publish Incomplete Wedding"
+            message={
+              <div className="space-y-4">
+                <p className="text-gray-600">The following required fields are missing:</p>
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 text-yellow-800">
+                    <RiErrorWarningLine className="flex-shrink-0" />
+                    <ul className="list-disc list-inside">
+                      {getMissingFields().map((field, index) => (
+                        <li key={index}>{field}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <p className="text-gray-600">
+                  You can either complete these fields to publish, or save as a draft to finish later.
+                </p>
+              </div>
+            }
+            confirmLabel="OK"
+            onConfirm={() => setShowIncompleteWarning(false)}
+            onCancel={() => setShowIncompleteWarning(false)}
+            confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          />
+        )}
+
+        {previewImage && (
+          <div 
+            className="fixed inset-0 z-50 bg-black bg-opacity-90"
+            onClick={() => {
+              setPreviewImage(null);
+              setPreviewImageIndex(-1);
             }}
           >
-            Save as Draft
-          </Button>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" icon={RiSaveLine}>
-            {initialData ? 'Update Wedding' : 'Publish Wedding'}
-          </Button>
-        </div>
-      </form>
-    </FormModal>
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setPreviewImage(null);
+                setPreviewImageIndex(-1);
+              }}
+              className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
+              aria-label="Close preview"
+              type="button"
+            >
+              <RiCloseLine className="w-8 h-8" />
+            </button>
+
+            {/* Navigation buttons */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNavigatePreview('prev');
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors"
+              aria-label="Previous image"
+              type="button"
+            >
+              <RiArrowLeftSLine className="w-8 h-8" />
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNavigatePreview('next');
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors"
+              aria-label="Next image"
+              type="button"
+            >
+              <RiArrowRightSLine className="w-8 h-8" />
+            </button>
+
+            {/* Image container with counter */}
+            <div 
+              className="w-full h-full flex flex-col items-center justify-center gap-4 p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={previewImage}
+                alt={`Gallery image ${previewImageIndex + 1}`}
+                className="max-w-[90vw] max-h-[85vh] object-contain"
+              />
+              <div className="text-white text-sm font-medium bg-black bg-opacity-75 px-4 py-1.5 rounded-full">
+                Image {previewImageIndex + 1} of {formData.gallery_images?.length}
+              </div>
+            </div>
+          </div>
+        )}
+      </FormModal>
+
+      {showErrorAlert && (
+        <ConfirmModal
+          title="Error Details"
+          message={
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-red-600">
+                <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                <p className="font-medium">An error occurred while saving the wedding</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <pre className="whitespace-pre-wrap text-sm font-mono text-gray-700 overflow-auto max-h-96">
+                  {errorDetails}
+                </pre>
+              </div>
+            </div>
+          }
+          confirmLabel="Close"
+          onConfirm={() => setShowErrorAlert(false)}
+          onCancel={() => setShowErrorAlert(false)}
+          confirmButtonClassName="bg-gray-600 hover:bg-gray-700 text-white"
+          hideCancel
+        />
+      )}
+    </>
   );
 } 
