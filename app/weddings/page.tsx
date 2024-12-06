@@ -21,6 +21,7 @@ interface Wedding {
   is_featured_home: boolean;
   gallery_images: string[];
   status: 'draft' | 'published';
+  missingFields?: string[];
 }
 
 export default function WeddingsPage() {
@@ -37,6 +38,8 @@ export default function WeddingsPage() {
   const [showGalleryPreview, setShowGalleryPreview] = useState(false);
   const [selectedGalleryWedding, setSelectedGalleryWedding] = useState<Wedding | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showMissingFieldsModal, setShowMissingFieldsModal] = useState(false);
+  const [selectedWedding, setSelectedWedding] = useState<Wedding | null>(null);
   const supabase = createClientComponentClient<Database>();
   const router = useRouter();
 
@@ -59,6 +62,15 @@ export default function WeddingsPage() {
   };
 
   const handleStatusChange = async (id: string, newStatus: 'draft' | 'published') => {
+    const wedding = weddings.find(w => w.id === id);
+    if (!wedding) return;
+
+    if (newStatus === 'published' && !isWeddingComplete(wedding)) {
+      setSelectedWedding(wedding);
+      setShowMissingFieldsModal(true);
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('weddings')
@@ -263,6 +275,24 @@ export default function WeddingsPage() {
     return matchesSearch && matchesStatus;
   });
 
+  const isWeddingComplete = (wedding: Wedding) => {
+    const missingFields = [];
+    
+    if (!wedding.couple_names?.trim()) missingFields.push('Couple Names');
+    if (!wedding.wedding_date?.trim()) missingFields.push('Wedding Date');
+    if (!wedding.location?.trim()) missingFields.push('Location');
+    if (!wedding.featured_image_key) missingFields.push('Featured Image');
+    if (!wedding.gallery_images || wedding.gallery_images.length === 0) missingFields.push('Gallery Images');
+
+    wedding.missingFields = missingFields;
+    return missingFields.length === 0;
+  };
+
+  const handleIncompleteClick = (wedding: Wedding) => {
+    setSelectedWedding(wedding);
+    setShowMissingFieldsModal(true);
+  };
+
   return (
     <div className='min-h-screen max-h-screen flex flex-col p-8 overflow-hidden'>
       <div className="flex-none">
@@ -375,10 +405,30 @@ export default function WeddingsPage() {
                     {wedding.status === 'draft' ? (
                       <Button
                         variant="secondary"
-                        onClick={() => handleStatusChange(wedding.id, 'published')}
-                        className="bg-green-50 text-green-600 hover:bg-green-100"
+                        onClick={() => isWeddingComplete(wedding) 
+                          ? handleStatusChange(wedding.id, 'published')
+                          : handleIncompleteClick(wedding)
+                        }
+                        className={`${
+                          isWeddingComplete(wedding)
+                            ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                            : 'bg-red-50 text-red-600 border-red-100 opacity-80'
+                        }`}
+                        disabled={false}
+                        title={
+                          !isWeddingComplete(wedding)
+                            ? 'Click to see missing fields'
+                            : 'Publish wedding'
+                        }
                       >
-                        Publish
+                        {!isWeddingComplete(wedding) ? (
+                          <span className="flex items-center gap-1">
+                            <RiErrorWarningLine className="w-4 h-4" />
+                            Incomplete
+                          </span>
+                        ) : (
+                          'Publish'
+                        )}
                       </Button>
                     ) : (
                       <Button
@@ -566,6 +616,37 @@ export default function WeddingsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showMissingFieldsModal && selectedWedding && (
+        <ConfirmModal
+          title="Incomplete Wedding Post"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">The following fields are required before publishing:</p>
+              <ul className="list-disc list-inside space-y-2">
+                {selectedWedding.missingFields?.map((field, index) => (
+                  <li key={index} className="flex items-center gap-2 text-red-600">
+                    <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                    <span>{field}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-sm text-gray-500 mt-4">Click Edit to complete these fields.</p>
+            </div>
+          }
+          confirmLabel="Edit Wedding"
+          onConfirm={() => {
+            setShowMissingFieldsModal(false);
+            setEditingWedding(selectedWedding);
+            setShowForm(true);
+          }}
+          onCancel={() => {
+            setShowMissingFieldsModal(false);
+            setSelectedWedding(null);
+          }}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+        />
       )}
     </div>
   );
