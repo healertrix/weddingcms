@@ -150,7 +150,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
         formData.wedding_date !== '' ||
         formData.location !== '' ||
         formData.description !== '' ||
-        formData.video_url !== '';
+        (formData.video_url !== '' && isValidVideo);
     }
 
     return formData.title !== initialData.title ||
