@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
@@ -17,11 +17,12 @@ type FilmFormProps = {
 
 export type FilmFormData = {
   title: string;
-  coupleNames: string;
-  weddingDate: string;
+  couple_names: string;
+  wedding_date: string;
   location: string;
   description: string;
-  videoUrl: string;
+  video_url: string;
+  status?: 'draft' | 'published';
 };
 
 function getVideoId(url: string) {
@@ -67,49 +68,77 @@ function VideoPreview({ url }: { url: string }) {
 }
 
 export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData }: FilmFormProps) {
-  const [formData, setFormData] = useState<FilmFormData>(initialData || {
-    title: '',
-    coupleNames: '',
-    weddingDate: '',
-    location: '',
-    description: '',
-    videoUrl: '',
+  const coupleNamesInputRef = useRef<HTMLInputElement>(null);
+  const [formData, setFormData] = useState<FilmFormData>({
+    title: initialData?.title || '',
+    couple_names: initialData?.couple_names || '',
+    wedding_date: initialData?.wedding_date || '',
+    location: initialData?.location || '',
+    description: initialData?.description || '',
+    video_url: initialData?.video_url || '',
   });
   const [isValidVideo, setIsValidVideo] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showCoupleNameWarning, setShowCoupleNameWarning] = useState(false);
+  const [showIncompleteWarning, setShowIncompleteWarning] = useState(false);
 
   useEffect(() => {
-    if (formData.videoUrl) {
-      const videoInfo = getVideoId(formData.videoUrl);
+    if (formData.video_url) {
+      const videoInfo = getVideoId(formData.video_url);
       setIsValidVideo(!!videoInfo);
     } else {
       setIsValidVideo(false);
     }
-  }, [formData.videoUrl]);
+  }, [formData.video_url]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    // Format the data to match database schema
+    const filmData = {
+      title: formData.title.trim() || null,
+      couple_names: formData.couple_names.trim(),
+      wedding_date: formData.wedding_date || null,
+      location: formData.location.trim() || null,
+      description: formData.description.trim() || null,
+      video_url: formData.video_url.trim() || null,
+      status: 'published'
+    };
+
+    console.log('Publishing with data:', filmData);
+    onSubmit(filmData);
   };
 
   const handleSaveAsDraft = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!formData.coupleNames.trim()) {
+    if (!formData.couple_names.trim()) {
       setShowCoupleNameWarning(true);
       return;
     }
-    onSaveAsDraft(formData);
+
+    // Format the data to match database schema
+    const filmData = {
+      title: formData.title.trim() || null,
+      couple_names: formData.couple_names.trim(),
+      wedding_date: formData.wedding_date || null,
+      location: formData.location.trim() || null,
+      description: formData.description.trim() || null,
+      video_url: formData.video_url.trim() || null,
+      status: 'draft'
+    };
+
+    console.log('Saving draft with data:', filmData);
+    onSaveAsDraft(filmData);
   };
 
   const isFormComplete = () => {
     return (
       formData.title.trim() !== '' &&
-      formData.coupleNames.trim() !== '' &&
-      formData.weddingDate.trim() !== '' &&
+      formData.couple_names.trim() !== '' &&
+      formData.wedding_date.trim() !== '' &&
       formData.location.trim() !== '' &&
       formData.description.trim() !== '' &&
-      formData.videoUrl.trim() !== '' &&
+      formData.video_url.trim() !== '' &&
       isValidVideo
     );
   };
@@ -117,42 +146,75 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const hasUnsavedChanges = () => {
     if (!initialData) {
       return formData.title !== '' ||
-        formData.coupleNames !== '' ||
-        formData.weddingDate !== '' ||
+        formData.couple_names !== '' ||
+        formData.wedding_date !== '' ||
         formData.location !== '' ||
         formData.description !== '' ||
-        formData.videoUrl !== '';
+        formData.video_url !== '';
     }
 
     return formData.title !== initialData.title ||
-      formData.coupleNames !== initialData.coupleNames ||
-      formData.weddingDate !== initialData.weddingDate ||
+      formData.couple_names !== initialData.couple_names ||
+      formData.wedding_date !== initialData.wedding_date ||
       formData.location !== initialData.location ||
       formData.description !== initialData.description ||
-      formData.videoUrl !== initialData.videoUrl;
+      formData.video_url !== initialData.video_url;
   };
 
-  const handleClose = () => {
-    if (hasUnsavedChanges()) {
-      setShowCloseConfirm(true);
-    } else {
-      onClose();
-    }
+  const getMissingFields = () => {
+    const missingFields = [];
+    if (!formData.title.trim()) missingFields.push('Title');
+    if (!formData.couple_names.trim()) missingFields.push('Couple Names');
+    if (!formData.wedding_date.trim()) missingFields.push('Wedding Date');
+    if (!formData.location.trim()) missingFields.push('Location');
+    if (!formData.description.trim()) missingFields.push('Description');
+    if (!formData.video_url.trim() || !isValidVideo) missingFields.push('Valid Video URL');
+    return missingFields;
+  };
+
+  const focusCoupleNames = () => {
+    setTimeout(() => {
+      coupleNamesInputRef.current?.focus();
+    }, 100);
   };
 
   return (
     <FormModal
       title={initialData ? 'Edit Film' : 'Add Film'}
-      onClose={handleClose}
+      onClose={() => {
+        if (hasUnsavedChanges()) {
+          if (!formData.couple_names.trim()) {
+            setShowCoupleNameWarning(true);
+            return;
+          }
+          // Format the data to match database schema
+          const filmData = {
+            title: formData.title.trim() || null,
+            couple_names: formData.couple_names.trim(),
+            wedding_date: formData.wedding_date || null,
+            location: formData.location.trim() || null,
+            description: formData.description.trim() || null,
+            video_url: formData.video_url.trim() || null,
+            status: 'draft'
+          };
+          console.log('Saving draft on close with data:', filmData);
+          onSaveAsDraft(filmData);
+        } else {
+          onClose();
+        }
+      }}
+      closeButtonLabel={hasUnsavedChanges() ? "Save as Draft" : "Cancel"}
+      icon={hasUnsavedChanges() ? RiSaveLine : RiCloseLine}
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 gap-6">
           <FormField label="Couple Names" required>
             <div>
               <Input
+                ref={coupleNamesInputRef}
                 required
-                value={formData.coupleNames}
-                onChange={(e) => setFormData({ ...formData, coupleNames: e.target.value })}
+                value={formData.couple_names}
+                onChange={(e) => setFormData({ ...formData, couple_names: e.target.value })}
                 placeholder="e.g., Sarah & John"
               />
               <p className="text-sm text-gray-500 mt-1">Required even for drafts</p>
@@ -174,8 +236,8 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
             <Input
               required
               type="date"
-              value={formData.weddingDate}
-              onChange={(e) => setFormData({ ...formData, weddingDate: e.target.value })}
+              value={formData.wedding_date}
+              onChange={(e) => setFormData({ ...formData, wedding_date: e.target.value })}
             />
           </FormField>
 
@@ -206,12 +268,12 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
               <Input
                 type="url"
                 required
-                value={formData.videoUrl}
-                onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                value={formData.video_url}
+                onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
                 placeholder="Enter YouTube or Vimeo URL"
-                className={formData.videoUrl && !isValidVideo ? 'border-red-500' : ''}
+                className={formData.video_url && !isValidVideo ? 'border-red-500' : ''}
               />
-              {formData.videoUrl && !isValidVideo && (
+              {formData.video_url && !isValidVideo && (
                 <p className="text-sm text-red-500 mt-1">
                   Please enter a valid YouTube or Vimeo URL
                 </p>
@@ -220,11 +282,11 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
           ) : (
             <div>
               <div className="relative rounded-lg overflow-hidden">
-                <VideoPreview url={formData.videoUrl} />
+                <VideoPreview url={formData.video_url} />
                 <div className="absolute top-3 right-3 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, videoUrl: '' })}
+                    onClick={() => setFormData({ ...formData, video_url: '' })}
                     className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 hover:text-red-700 shadow-lg transition-all hover:scale-110 border border-red-100 group"
                     title="Change video"
                   >
@@ -237,44 +299,50 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
         </FormField>
 
         <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
-          <Button 
-            variant="secondary" 
-            onClick={handleSaveAsDraft}
-            className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-          >
-            Save as Draft
-          </Button>
-          <Button 
-            variant="secondary" 
-            onClick={handleClose}
-            className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            icon={RiSaveLine}
-            disabled={!isFormComplete()}
-            className={`${
-              isFormComplete()
-                ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
-                : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
-            }`}
-            title={
-              !isFormComplete()
-                ? 'Cannot publish: Missing required fields'
-                : initialData ? 'Update film' : 'Publish film'
-            }
-          >
-            {!isFormComplete() ? (
-              <span className="flex items-center gap-1">
-                <RiErrorWarningLine className="w-4 h-4" />
-                Incomplete
-              </span>
-            ) : (
-              initialData ? 'Update Film' : 'Publish Film'
-            )}
-          </Button>
+          {hasUnsavedChanges() && (
+            <>
+              <Button 
+                variant="secondary" 
+                onClick={handleSaveAsDraft}
+                type="button"
+                className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+              >
+                Save as Draft
+              </Button>
+              <Button 
+                type="submit" 
+                icon={RiSaveLine}
+                disabled={!isFormComplete()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (!isFormComplete()) {
+                    setShowIncompleteWarning(true);
+                    return;
+                  }
+                  handleSubmit(e);
+                }}
+                className={`${
+                  isFormComplete()
+                    ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
+                    : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
+                }`}
+                title={
+                  !isFormComplete()
+                    ? `Cannot publish: Missing ${getMissingFields().join(', ')}`
+                    : initialData ? 'Update film' : 'Publish film'
+                }
+              >
+                {!isFormComplete() ? (
+                  <span className="flex items-center gap-1">
+                    <RiErrorWarningLine className="w-4 h-4" />
+                    Incomplete
+                  </span>
+                ) : (
+                  initialData ? 'Update Film' : 'Publish Film'
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </form>
 
@@ -310,12 +378,42 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
             </div>
           }
           confirmLabel="OK"
-          onConfirm={() => setShowCoupleNameWarning(false)}
-          showCancelButton={true}
-          cancelLabel="Cancel"
+          onConfirm={() => {
+            setShowCoupleNameWarning(false);
+            focusCoupleNames();
+          }}
+          showCancelButton={false}
           confirmButtonClassName="bg-[#92400E] hover:bg-[#78340F] text-white"
           showCloseButton={false}
-          onCancel={() => setShowCoupleNameWarning(false)}
+          allowBackgroundCancel={false}
+        />
+      )}
+
+      {showIncompleteWarning && (
+        <ConfirmModal
+          title="Cannot Publish Incomplete Film"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">The following required fields are missing:</p>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <RiErrorWarningLine className="flex-shrink-0" />
+                  <ul className="list-disc list-inside">
+                    {getMissingFields().map((field, index) => (
+                      <li key={index}>{field}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <p className="text-gray-600">
+                You can either complete these fields to publish, or save as a draft to finish later.
+              </p>
+            </div>
+          }
+          confirmLabel="OK"
+          onConfirm={() => setShowIncompleteWarning(false)}
+          onCancel={() => setShowIncompleteWarning(false)}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
         />
       )}
     </FormModal>

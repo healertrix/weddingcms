@@ -143,14 +143,16 @@ export default function FilmsPage() {
       const now = new Date().toISOString();
       const filmData = {
         title: data.title,
-        couple_names: data.coupleNames,
-        wedding_date: data.weddingDate,
+        couple_names: data.couple_names,
+        wedding_date: data.wedding_date,
         location: data.location,
         description: data.description,
-        video_url: data.videoUrl,
+        video_url: data.video_url,
         status: saveAsDraft ? 'draft' : 'published',
         updated_at: now
       };
+
+      console.log('Submitting film data:', filmData);
 
       if (editingFilm) {
         const { error } = await supabase
@@ -424,11 +426,11 @@ export default function FilmsPage() {
           onSaveAsDraft={(data) => handleSubmit(data, true)}
           initialData={editingFilm ? {
             title: editingFilm.title,
-            coupleNames: editingFilm.couple_names,
-            weddingDate: editingFilm.wedding_date,
+            couple_names: editingFilm.couple_names,
+            wedding_date: editingFilm.wedding_date,
             location: editingFilm.location,
             description: editingFilm.description,
-            videoUrl: editingFilm.video_url,
+            video_url: editingFilm.video_url,
           } : undefined}
         />
       )}
