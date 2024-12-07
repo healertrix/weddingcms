@@ -310,7 +310,7 @@ export default function FilmsPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className='text-xl font-medium text-gray-900'>{film.title}</h3>
+                        <h3 className='text-xl font-medium text-gray-900'>{film.couple_names}</h3>
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                           film.status === 'published' 
                             ? 'bg-green-100 text-green-800'
