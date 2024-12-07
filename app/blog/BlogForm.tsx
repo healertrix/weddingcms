@@ -1140,17 +1140,12 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                   </p>
                 </div>
               </div>
-              {/* Decorative elements */}
-              <div className="flex justify-center space-x-2">
-                <div className="w-2 h-2 bg-[#8B4513]/20 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-[#8B4513]/40 rounded-full animate-pulse delay-100"></div>
-                <div className="w-2 h-2 bg-[#8B4513]/60 rounded-full animate-pulse delay-200"></div>
-              </div>
             </div>
           }
           confirmLabel="Please wait..."
           onConfirm={() => {}}
-          confirmButtonClassName="bg-[#8B4513]/50 cursor-not-allowed hover:bg-[#8B4513]/50"
+          onCancel={() => {}}
+          confirmButtonClassName="bg-brown-600 hover:bg-brown-700"
           showCancelButton={false}
           showCloseButton={false}
           allowBackgroundCancel={false}
