@@ -135,7 +135,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
     return (
       formData.title?.trim() !== '' &&
       formData.couple_names.trim() !== '' &&
-      formData.wedding_date.trim() !== '' &&
+      formData.wedding_date?.trim() !== '' &&
       formData.location?.trim() !== '' &&
       formData.description?.trim() !== '' &&
       formData.video_url?.trim() !== '' &&
@@ -165,7 +165,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
     const missingFields = [];
     if (!formData.title?.trim()) missingFields.push('Title');
     if (!formData.couple_names.trim()) missingFields.push('Couple Names');
-    if (!formData.wedding_date.trim()) missingFields.push('Wedding Date');
+    if (!formData.wedding_date?.trim()) missingFields.push('Wedding Date');
     if (!formData.location?.trim()) missingFields.push('Location');
     if (!formData.description?.trim()) missingFields.push('Description');
     if (!formData.video_url?.trim() || !isValidVideo) missingFields.push('Valid Video URL');
