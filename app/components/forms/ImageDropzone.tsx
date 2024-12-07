@@ -90,7 +90,7 @@ export default function ImageDropzone({
     setUploadProgress(0);
 
     try {
-      const uploadedFiles = [];
+      const uploadedFiles: Array<{ key: string; url: string }> = [];
       const totalFiles = acceptedFiles.length;
       
       for (let i = 0; i < acceptedFiles.length; i++) {
