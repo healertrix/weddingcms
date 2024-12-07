@@ -99,6 +99,9 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   );
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const coupleNamesInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showUploadingWarning, setShowUploadingWarning] = useState(false);
+  const [showIncompleteWarning, setShowIncompleteWarning] = useState(false);
 
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -139,8 +142,18 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   const handleSubmit = async (e: React.FormEvent, saveAsDraft: boolean) => {
     e.preventDefault();
 
+    if (isUploading) {
+      setShowUploadingWarning(true);
+      return;
+    }
+
     if (saveAsDraft && !formData.coupleNames?.trim()) {
       setShowCoupleNamesWarning(true);
+      return;
+    }
+
+    if (!saveAsDraft && !isFormComplete()) {
+      setShowIncompleteWarning(true);
       return;
     }
 
@@ -164,6 +177,8 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
         imageKey: files[0].key,
         imageUrl: files[0].url
       });
+      // Reset upload state after successful upload
+      setIsUploading(false);
     }
   };
 
@@ -283,6 +298,10 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       <FormModal
         title={initialData ? 'Edit Testimonial' : 'Add Testimonial'}
         onClose={() => {
+          if (isUploading) {
+            setShowUploadingWarning(true);
+            return;
+          }
           if (hasUnsavedChanges()) {
             if (!formData.coupleNames?.trim()) {
               setShowCoupleNamesWarning(true);
@@ -298,8 +317,9 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
             onClose();
           }
         }}
-        closeButtonLabel={hasUnsavedChanges() ? "Save as Draft" : "Cancel"}
+        closeButtonLabel={isUploading ? "Upload in progress..." : (hasUnsavedChanges() ? "Save as Draft" : "Cancel")}
         icon={hasUnsavedChanges() ? RiSaveLine : RiCloseLine}
+        disableClose={isUploading}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
@@ -380,7 +400,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
                               handleDeleteClick();
                             }}
                             className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
-                            disabled={isDeleting}
+                            disabled={isDeleting || isUploading}
                             aria-label="Delete image"
                             title="Delete image"
                             type="button"
@@ -396,8 +416,12 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
                     onChange={handleImageUpload}
                     value={formData.imageUrl || ''}
                     onDelete={handleDeleteClick}
-                    disabled={isDeleting}
+                    disabled={isDeleting || isUploading}
                     folder="testimonial"
+                    multiple={false}
+                    onUploadStatusChange={(status) => {
+                      setIsUploading(status === 'uploading');
+                    }}
                   />
                 )}
               </FormField>
@@ -447,23 +471,47 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
               <>
                 <Button 
                   variant="secondary" 
-                  onClick={handleSaveAsDraft}
-                  type="button"
-                  className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (isUploading) {
+                      setShowUploadingWarning(true);
+                      return;
+                    }
+                    handleSubmit(e, true);
+                  }}
+                  className={`bg-gray-50 text-gray-600 hover:bg-gray-100 ${
+                    isUploading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isUploading}
+                  title={isUploading ? 'Please wait for upload to complete' : undefined}
                 >
                   Save as Draft
                 </Button>
                 <Button 
                   type="submit" 
                   icon={RiSaveLine}
-                  disabled={!isFormComplete()}
+                  disabled={!isFormComplete() || isUploading}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (isUploading) {
+                      setShowUploadingWarning(true);
+                      return;
+                    }
+                    if (!isFormComplete()) {
+                      setShowIncompleteWarning(true);
+                      return;
+                    }
+                    handleSubmit(e, false);
+                  }}
                   className={`${
-                    isFormComplete()
+                    isFormComplete() && !isUploading
                       ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
                       : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
                   }`}
                   title={
-                    !isFormComplete()
+                    isUploading
+                      ? 'Please wait for upload to complete'
+                      : !isFormComplete()
                       ? 'Cannot publish: Missing required fields'
                       : initialData ? 'Update testimonial' : 'Publish testimonial'
                   }
@@ -579,6 +627,56 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
             setShowCoupleNamesWarning(false);
             focusCoupleNames();
           }}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          showCancelButton={false}
+        />
+      )}
+
+      {showIncompleteWarning && (
+        <ConfirmModal
+          title="Cannot Publish Incomplete Testimonial"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">The following required fields are missing:</p>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <RiErrorWarningLine className="flex-shrink-0" />
+                  <ul className="list-disc list-inside">
+                    {getMissingFields().map((field, index) => (
+                      <li key={index}>{field}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <p className="text-gray-600">
+                You can either complete these fields to publish, or save as a draft to finish later.
+              </p>
+            </div>
+          }
+          confirmLabel="OK"
+          onConfirm={() => setShowIncompleteWarning(false)}
+          onCancel={() => setShowIncompleteWarning(false)}
+          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+        />
+      )}
+
+      {showUploadingWarning && (
+        <ConfirmModal
+          title="Upload in Progress"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">Please wait for the image upload to complete before proceeding.</p>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+                  <p>Images are still being uploaded. Please wait for the upload to finish.</p>
+                </div>
+              </div>
+            </div>
+          }
+          confirmLabel="OK"
+          onConfirm={() => setShowUploadingWarning(false)}
+          onCancel={() => setShowUploadingWarning(false)}
           confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
           showCancelButton={false}
         />
