@@ -96,13 +96,13 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
     
     // Format the data to match database schema
     const filmData = {
-      title: formData.title.trim() || null,
+      title: formData.title?.trim() || null,
       couple_names: formData.couple_names.trim(),
       wedding_date: formData.wedding_date || null,
-      location: formData.location.trim() || null,
-      description: formData.description.trim() || null,
-      video_url: isValidVideo ? formData.video_url.trim() : null,
-      status: 'published'
+      location: formData.location?.trim() || null,
+      description: formData.description?.trim() || null,
+      video_url: formData.video_url?.trim() || null,
+      status: 'published' as const
     };
 
     console.log('Publishing with data:', filmData);
@@ -118,13 +118,13 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
     // Format the data to match database schema
     const filmData = {
-      title: formData.title.trim() || null,
+      title: formData.title?.trim() || null,
       couple_names: formData.couple_names.trim(),
       wedding_date: formData.wedding_date || null,
-      location: formData.location.trim() || null,
-      description: formData.description.trim() || null,
-      video_url: isValidVideo ? formData.video_url.trim() : null,
-      status: 'draft'
+      location: formData.location?.trim() || null,
+      description: formData.description?.trim() || null,
+      video_url: formData.video_url?.trim() || null,
+      status: 'draft' as const
     };
 
     console.log('Saving draft with data:', filmData);
@@ -133,12 +133,12 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
   const isFormComplete = () => {
     return (
-      formData.title.trim() !== '' &&
+      formData.title?.trim() !== '' &&
       formData.couple_names.trim() !== '' &&
       formData.wedding_date.trim() !== '' &&
-      formData.location.trim() !== '' &&
-      formData.description.trim() !== '' &&
-      formData.video_url.trim() !== '' &&
+      formData.location?.trim() !== '' &&
+      formData.description?.trim() !== '' &&
+      formData.video_url?.trim() !== '' &&
       isValidVideo
     );
   };
@@ -163,12 +163,12 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
   const getMissingFields = () => {
     const missingFields = [];
-    if (!formData.title.trim()) missingFields.push('Title');
+    if (!formData.title?.trim()) missingFields.push('Title');
     if (!formData.couple_names.trim()) missingFields.push('Couple Names');
     if (!formData.wedding_date.trim()) missingFields.push('Wedding Date');
-    if (!formData.location.trim()) missingFields.push('Location');
-    if (!formData.description.trim()) missingFields.push('Description');
-    if (!formData.video_url.trim() || !isValidVideo) missingFields.push('Valid Video URL');
+    if (!formData.location?.trim()) missingFields.push('Location');
+    if (!formData.description?.trim()) missingFields.push('Description');
+    if (!formData.video_url?.trim() || !isValidVideo) missingFields.push('Valid Video URL');
     return missingFields;
   };
 
@@ -189,13 +189,13 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
           }
           // Format the data to match database schema
           const filmData = {
-            title: formData.title.trim() || null,
+            title: formData.title?.trim() || null,
             couple_names: formData.couple_names.trim(),
             wedding_date: formData.wedding_date || null,
-            location: formData.location.trim() || null,
-            description: formData.description.trim() || null,
-            video_url: isValidVideo ? formData.video_url.trim() : null,
-            status: 'draft'
+            location: formData.location?.trim() || null,
+            description: formData.description?.trim() || null,
+            video_url: formData.video_url?.trim() || null,
+            status: 'draft' as const
           };
           console.log('Saving draft on close with data:', filmData);
           onSaveAsDraft(filmData);
