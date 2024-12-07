@@ -16,12 +16,12 @@ type FilmFormProps = {
 };
 
 export type FilmFormData = {
-  title: string;
+  title: string | null;
   couple_names: string;
-  wedding_date: string;
-  location: string;
-  description: string;
-  video_url: string;
+  wedding_date: string | null;
+  location: string | null;
+  description: string | null;
+  video_url: string | null;
   status?: 'draft' | 'published';
 };
 
@@ -70,12 +70,12 @@ function VideoPreview({ url }: { url: string }) {
 export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData }: FilmFormProps) {
   const coupleNamesInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<FilmFormData>({
-    title: initialData?.title || '',
+    title: initialData?.title || null,
     couple_names: initialData?.couple_names || '',
-    wedding_date: initialData?.wedding_date || '',
-    location: initialData?.location || '',
-    description: initialData?.description || '',
-    video_url: initialData?.video_url || '',
+    wedding_date: initialData?.wedding_date || null,
+    location: initialData?.location || null,
+    description: initialData?.description || null,
+    video_url: initialData?.video_url || null,
   });
   const [isValidVideo, setIsValidVideo] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
