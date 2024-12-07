@@ -90,6 +90,17 @@ export default function BlogPage() {
   const [selectedGalleryPost, setSelectedGalleryPost] = useState<BlogPost | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && previewImage) {
+        setPreviewImage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewImage]);
+
   const fetchPosts = useCallback(async (page = 1) => {
     setIsLoading(true);
     try {

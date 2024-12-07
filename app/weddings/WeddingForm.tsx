@@ -1040,22 +1040,19 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
             <RiArrowRightSLine className="w-8 h-8" />
           </button>
 
-          {/* Image container with counter */}
+          {/* Image container */}
           <div 
-            className="w-full h-full flex flex-col items-center justify-center gap-4 p-4"
+            className="w-full h-full flex items-center justify-center p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <Image
               src={previewImage}
-              alt={`Gallery image ${previewImageIndex + 1}`}
+              alt="Preview image"
               className="max-w-[90vw] max-h-[85vh] object-contain"
               width={1920}
               height={1080}
               priority
             />
-            <div className="text-white text-sm font-medium bg-black bg-opacity-75 px-4 py-1.5 rounded-full">
-              Image {previewImageIndex + 1} of {formData.gallery_images?.length}
-            </div>
           </div>
         </div>
       )}

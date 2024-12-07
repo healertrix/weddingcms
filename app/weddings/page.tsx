@@ -44,6 +44,17 @@ export default function WeddingsPage() {
   const router = useRouter();
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && previewImage) {
+        setPreviewImage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewImage]);
+
+  useEffect(() => {
     fetchWeddings();
   }, []);
 
