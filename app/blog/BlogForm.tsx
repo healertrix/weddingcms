@@ -589,7 +589,6 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
               ) : (
                 <ImageDropzone
                   onChange={handleFeaturedImageUpload}
-                  maxFiles={1}
                   onDelete={handleDeleteClick}
                   disabled={isDeleting || isUploading}
                   folder="blogposts"
