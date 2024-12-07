@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
-import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiImageLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine, RiArrowLeftLine, RiArrowRightLine } from 'react-icons/ri';
+import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiImageLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine, RiArrowLeftLine, RiArrowRightLine, RiHome2Line, RiHome2Fill } from 'react-icons/ri';
 import WeddingForm, { WeddingFormData } from './WeddingForm';
 import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
@@ -293,6 +293,28 @@ export default function WeddingsPage() {
     setShowMissingFieldsModal(true);
   };
 
+  const handleFeatureToggle = async (id: string) => {
+    try {
+      const wedding = weddings.find(w => w.id === id);
+      if (!wedding) return;
+
+      const { error } = await supabase
+        .from('weddings')
+        .update({ is_featured_home: !wedding.is_featured_home })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setWeddings(prevWeddings =>
+        prevWeddings.map(w =>
+          w.id === id ? { ...w, is_featured_home: !w.is_featured_home } : w
+        )
+      );
+    } catch (error) {
+      console.error('Error updating wedding feature status:', error);
+    }
+  };
+
   return (
     <div className='min-h-screen max-h-screen flex flex-col p-8 overflow-hidden'>
       <div className="flex-none">
@@ -373,6 +395,19 @@ export default function WeddingsPage() {
                         }`}>
                           {wedding.status === 'published' ? 'Published' : 'Draft'}
                         </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleFeatureToggle(wedding.id)}
+                            className={`p-1.5 rounded-full transition-all ${
+                              wedding.is_featured_home
+                                ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                            title={wedding.is_featured_home ? "Remove from home" : "Feature on home"}
+                          >
+                            {wedding.is_featured_home ? <RiHome2Fill size={16} /> : <RiHome2Line size={16} />}
+                          </button>
+                        </div>
                       </div>
                       
                       <div className='flex items-center flex-wrap gap-4 text-sm text-gray-500 mb-4'>
