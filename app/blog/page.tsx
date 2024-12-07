@@ -461,6 +461,30 @@ export default function BlogPage() {
                         }`}>
                           {post.status === 'published' ? 'Published' : 'Draft'}
                         </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleFeaturedToggle(post.id, 'home', post.is_featured_home)}
+                            className={`p-1.5 rounded-full transition-all ${
+                              post.is_featured_home
+                                ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                            title={post.is_featured_home ? "Remove from home" : "Feature on home"}
+                          >
+                            {post.is_featured_home ? <RiHome2Fill size={16} /> : <RiHome2Line size={16} />}
+                          </button>
+                          <button
+                            onClick={() => handleFeaturedToggle(post.id, 'blog', post.is_featured_blog)}
+                            className={`p-1.5 rounded-full transition-all ${
+                              post.is_featured_blog
+                                ? 'bg-purple-100 text-purple-600 hover:bg-purple-200'
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                            title={post.is_featured_blog ? "Remove from featured" : "Feature in blog"}
+                          >
+                            {post.is_featured_blog ? <RiStarFill size={16} /> : <RiStarLine size={16} />}
+                          </button>
+                        </div>
                       </div>
                       
                       <div className='flex items-center flex-wrap gap-4 text-sm text-gray-500 mb-4'>
