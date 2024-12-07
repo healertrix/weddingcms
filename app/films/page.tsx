@@ -447,7 +447,6 @@ export default function FilmsPage() {
                   <div className="font-medium text-red-800">This will permanently delete:</div>
                   <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
                     <li>The film details</li>
-                    <li>Thumbnail image</li>
                     <li>Video link</li>
                   </ul>
                   <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
