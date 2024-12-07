@@ -55,6 +55,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
   const [errorDetails, setErrorDetails] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadingWarning, setShowUploadingWarning] = useState(false);
+  const [isFeaturedImageUploading, setIsFeaturedImageUploading] = useState(false);
 
   const isFormComplete = () => {
     const requiredFields = {
@@ -135,6 +136,11 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
         ...formData,
         featuredImageKey: files[0].url
       });
+      // Reset upload states after successful upload
+      setTimeout(() => {
+        setIsUploading(false);
+        setIsFeaturedImageUploading(false);
+      }, 500);
     }
   };
 
@@ -569,7 +575,9 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                   folder="weddings"
                   multiple={false}
                   onUploadStatusChange={(status) => {
-                    setIsUploading(status === 'uploading');
+                    const isCurrentlyUploading = status === 'uploading';
+                    setIsUploading(isCurrentlyUploading);
+                    setIsFeaturedImageUploading(isCurrentlyUploading);
                   }}
                 />
               )}
@@ -1095,6 +1103,45 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
           onCancel={() => setShowErrorAlert(false)}
           confirmButtonClassName="bg-gray-600 hover:bg-gray-700 text-white"
           hideCancel
+        />
+      )}
+
+      {/* Featured Image Upload Modal */}
+      {isFeaturedImageUploading && (
+        <ConfirmModal
+          title="Uploading Featured Image"
+          message={
+            <div className="space-y-8 py-4">
+              {/* Elegant loading animation */}
+              <div className="flex flex-col items-center justify-center space-y-6">
+                <div className="relative">
+                  <div className="w-16 h-16 border-4 border-[#8B4513]/20 rounded-full"></div>
+                  <div className="absolute top-0 left-0 w-16 h-16 border-4 border-[#8B4513] rounded-full border-t-transparent animate-spin"></div>
+                </div>
+                <div className="flex flex-col items-center space-y-2">
+                  <p className="text-lg font-medium text-gray-800">
+                    Uploading your image...
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Please wait while we process your featured image
+                  </p>
+                </div>
+              </div>
+              {/* Decorative elements */}
+              <div className="flex justify-center space-x-2">
+                <div className="w-2 h-2 bg-[#8B4513]/20 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-[#8B4513]/40 rounded-full animate-pulse delay-100"></div>
+                <div className="w-2 h-2 bg-[#8B4513]/60 rounded-full animate-pulse delay-200"></div>
+              </div>
+            </div>
+          }
+          confirmLabel="Please wait..."
+          onConfirm={() => {}}
+          confirmButtonClassName="bg-[#8B4513]/50 cursor-not-allowed hover:bg-[#8B4513]/50"
+          showCancelButton={false}
+          showCloseButton={false}
+          allowBackgroundCancel={false}
+          disabled={true}
         />
       )}
     </>
