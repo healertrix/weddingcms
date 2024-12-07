@@ -23,7 +23,7 @@ export type TestimonialFormData = {
   review: string;
   imageKey?: string;
   imageUrl?: string;
-  videoUrl?: string;
+  videoUrl: string;
 };
 
 function getVideoId(url: string) {
@@ -84,7 +84,19 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState(0);
   const [isValidVideo, setIsValidVideo] = useState(false);
-  const [initialFormData] = useState(formData);
+  const [initialFormData] = useState<TestimonialFormData>(
+    initialData ? 
+    JSON.parse(JSON.stringify(initialData)) : 
+    {
+      coupleNames: '',
+      weddingDate: null,
+      location: '',
+      review: '',
+      imageKey: '',
+      imageUrl: '',
+      videoUrl: ''
+    }
+  );
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const coupleNamesInputRef = useRef<HTMLInputElement>(null);
 
@@ -132,10 +144,10 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       return;
     }
 
-    const submissionData = {
+    const submissionData: TestimonialFormData = {
       ...formData,
       weddingDate: formData.weddingDate?.trim() || null,
-      videoUrl: isValidVideo ? formData.videoUrl.trim() : null
+      videoUrl: formData.videoUrl?.trim() || ''
     };
 
     if (saveAsDraft) {
@@ -212,25 +224,36 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   };
 
   const hasUnsavedChanges = () => {
-    if (!initialData) {
-      return formData.coupleNames !== '' ||
-        formData.weddingDate !== null ||
-        formData.location !== '' ||
-        formData.review !== '' ||
-        (formData.videoUrl !== '' && isValidVideo) ||
-        formData.imageUrl !== '';
+    // In edit mode, always show the draft flow
+    if (initialData) {
+      return true;
     }
 
-    // For editing existing data, compare with initial values but consider video validity
-    const currentData = {
+    // For new testimonials, check if any required field has content
+    return Boolean(
+      formData.coupleNames?.trim() ||
+      formData.weddingDate ||
+      formData.location?.trim() ||
+      formData.review?.trim() ||
+      formData.videoUrl?.trim() ||
+      formData.imageUrl
+    );
+  };
+
+  const handleSaveAsDraft = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!formData.coupleNames?.trim()) {
+      setShowCoupleNamesWarning(true);
+      return;
+    }
+
+    const submissionData: TestimonialFormData = {
       ...formData,
-      videoUrl: isValidVideo ? formData.videoUrl : ''
+      weddingDate: formData.weddingDate?.trim() || null,
+      videoUrl: formData.videoUrl?.trim() || ''
     };
-    const compareData = {
-      ...initialFormData,
-      videoUrl: getVideoId(initialFormData.videoUrl || '') ? initialFormData.videoUrl : ''
-    };
-    return JSON.stringify(compareData) !== JSON.stringify(currentData);
+
+    onSaveAsDraft(submissionData);
   };
 
   const handleClose = () => {
@@ -259,10 +282,24 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     <>
       <FormModal
         title={initialData ? 'Edit Testimonial' : 'Add Testimonial'}
-        onClose={handleClose}
+        onClose={() => {
+          if (hasUnsavedChanges()) {
+            if (!formData.coupleNames?.trim()) {
+              setShowCoupleNamesWarning(true);
+              return;
+            }
+            const submissionData: TestimonialFormData = {
+              ...formData,
+              weddingDate: formData.weddingDate?.trim() || null,
+              videoUrl: formData.videoUrl?.trim() || ''
+            };
+            onSaveAsDraft(submissionData);
+          } else {
+            onClose();
+          }
+        }}
         closeButtonLabel={hasUnsavedChanges() ? "Save as Draft" : "Cancel"}
         icon={hasUnsavedChanges() ? RiSaveLine : RiCloseLine}
-        hideHeader={true}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
@@ -357,8 +394,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
                 ) : (
                   <ImageDropzone
                     onChange={handleImageUpload}
-                    value={formData.imageUrl}
-                    maxFiles={1}
+                    value={formData.imageUrl || ''}
                     onDelete={handleDeleteClick}
                     disabled={isDeleting}
                     folder="testimonial"
@@ -388,7 +424,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
                 ) : (
                   <div>
                     <div className="relative rounded-lg overflow-hidden">
-                      <VideoPreview url={formData.videoUrl} />
+                      <VideoPreview url={formData.videoUrl || ''} />
                       <div className="absolute top-3 right-3 flex gap-2">
                         <button
                           type="button"
@@ -407,43 +443,41 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
           </div>
 
           <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
-            {hasUnsavedChanges() && (
-              <Button 
-                variant="secondary" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleSubmit(e, true);
-                }}
-                className="bg-gray-50 text-gray-600 hover:bg-gray-100"
-              >
-                Save as Draft
-              </Button>
-            )}
-            {hasUnsavedChanges() && (
-              <Button 
-                type="submit" 
-                icon={RiSaveLine}
-                disabled={!isFormComplete()}
-                className={`${
-                  isFormComplete()
-                    ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
-                    : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
-                }`}
-                title={
-                  !isFormComplete()
-                    ? 'Cannot publish: Missing required fields or image'
-                    : initialData ? 'Update testimonial' : 'Publish testimonial'
-                }
-              >
-                {!isFormComplete() ? (
-                  <span className="flex items-center gap-1">
-                    <RiErrorWarningLine className="w-4 h-4" />
-                    Incomplete
-                  </span>
-                ) : (
-                  initialData ? 'Update Testimonial' : 'Publish Testimonial'
-                )}
-              </Button>
+            {(initialData || hasUnsavedChanges()) && (
+              <>
+                <Button 
+                  variant="secondary" 
+                  onClick={handleSaveAsDraft}
+                  type="button"
+                  className="bg-gray-50 text-gray-600 hover:bg-gray-100"
+                >
+                  Save as Draft
+                </Button>
+                <Button 
+                  type="submit" 
+                  icon={RiSaveLine}
+                  disabled={!isFormComplete()}
+                  className={`${
+                    isFormComplete()
+                      ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
+                      : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
+                  }`}
+                  title={
+                    !isFormComplete()
+                      ? 'Cannot publish: Missing required fields'
+                      : initialData ? 'Update testimonial' : 'Publish testimonial'
+                  }
+                >
+                  {!isFormComplete() ? (
+                    <span className="flex items-center gap-1">
+                      <RiErrorWarningLine className="w-4 h-4" />
+                      Incomplete
+                    </span>
+                  ) : (
+                    initialData ? 'Update Testimonial' : 'Publish Testimonial'
+                  )}
+                </Button>
+              </>
             )}
           </div>
         </form>
