@@ -434,6 +434,12 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
   };
 
   const hasAnyData = () => {
+    // In edit mode, always show the draft flow
+    if (initialData) {
+      return true;
+    }
+
+    // For new wedding posts, check if any field has content
     return formData.coupleNames.trim() !== '' ||
       formData.weddingDate.trim() !== '' ||
       formData.location.trim() !== '' ||
@@ -721,7 +727,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
           </FormField>
 
           <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
-            {hasAnyData() && (
+            {(initialData || hasAnyData()) && (
               <>
                 <Button 
                   variant="secondary" 
