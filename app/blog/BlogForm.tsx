@@ -431,6 +431,12 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   };
 
   const hasAnyData = () => {
+    // In edit mode, always show the draft flow
+    if (initialData) {
+      return true;
+    }
+
+    // For new blog posts, check if any field has content
     return formData.title.trim() !== '' ||
       formData.slug.trim() !== '' ||
       formData.content.trim() !== '' ||
@@ -762,7 +768,8 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
           </FormField>
 
           <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
-            {hasAnyData() && (
+            {/* Always show buttons in edit mode or when there are changes */}
+            {(initialData || hasAnyData()) && (
               <>
                 <Button 
                   variant="secondary" 
