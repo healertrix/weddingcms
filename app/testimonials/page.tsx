@@ -601,9 +601,9 @@ function VideoPreview({ url }: { url: string }) {
 
   let embedUrl = '';
   if (videoInfo.type === 'youtube') {
-    embedUrl = `https://www.youtube.com/embed/${videoInfo.id}`;
+    embedUrl = `https://www.youtube.com/embed/${videoInfo.id}?autoplay=1`;
   } else if (videoInfo.type === 'vimeo') {
-    embedUrl = `https://player.vimeo.com/video/${videoInfo.id}`;
+    embedUrl = `https://player.vimeo.com/video/${videoInfo.id}?autoplay=1`;
   }
 
   return (
