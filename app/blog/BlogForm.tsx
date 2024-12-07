@@ -470,7 +470,6 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
         }}
         closeButtonLabel={isUploading ? "Upload in progress..." : (hasAnyData() ? "Save as Draft" : "Cancel")}
         icon={hasAnyData() ? RiSaveLine : RiCloseLine}
-        disableClose={isUploading}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <FormField label="Title" required>
