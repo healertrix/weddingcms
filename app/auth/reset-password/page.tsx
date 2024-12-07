@@ -2,227 +2,312 @@
 
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { RiLockLine, RiEyeLine, RiEyeOffLine } from 'react-icons/ri';
+import { RiLockLine, RiEyeLine, RiEyeOffLine, RiCheckLine, RiCloseLine } from 'react-icons/ri';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [isValidToken, setIsValidToken] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [tokenStatus, setTokenStatus] = useState<'validating' | 'valid' | 'invalid'>('validating');
+  
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClientComponentClient();
 
-  useEffect(() => {
-    const handleHashParams = async () => {
-      try {
-        // Get the access_token from the URL
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const type = hashParams.get('type');
+  // Password validation states
+  const [validations, setValidations] = useState({
+    hasMinLength: false,
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    matches: false
+  });
 
-        if (!accessToken || type !== 'recovery') {
-          setMessage({
-            type: 'error',
-            text: 'Invalid or expired reset link. Please request a new password reset.'
+  // Validate password as user types
+  useEffect(() => {
+    setValidations({
+      hasMinLength: password.length >= 8,
+      hasUpperCase: /[A-Z]/.test(password),
+      hasLowerCase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      matches: password === confirmPassword && password !== ''
+    });
+  }, [password, confirmPassword]);
+
+  // Validate token on mount
+  useEffect(() => {
+    const validateToken = async () => {
+      try {
+        // Get all parameters from the URL
+        const code = searchParams?.get('code');
+        const accessToken = searchParams?.get('access_token');
+        const refreshToken = searchParams?.get('refresh_token');
+        const type = searchParams?.get('type');
+
+        // First try with code (newer Supabase versions)
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (!error) {
+            setTokenStatus('valid');
+            setError('');
+            return;
+          }
+        }
+
+        // Then try with access token (older versions or different flow)
+        if (accessToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
           });
+          if (!error) {
+            setTokenStatus('valid');
+            setError('');
+            return;
+          }
+        }
+
+        // If we get here without a valid session, check if we're in recovery mode
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setTokenStatus('valid');
+          setError('');
           return;
         }
 
-        // Set the session with the recovery token
-        const { error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: '',
-        });
+        throw new Error('Invalid reset token');
 
-        if (error) {
-          throw error;
-        }
-
-        // If we get here, the token is valid
-        setIsValidToken(true);
-        setMessage(null);
-
-      } catch (error) {
-        console.error('Error handling reset:', error);
-        setMessage({
-          type: 'error',
-          text: 'Invalid or expired reset link. Please request a new password reset.'
-        });
+      } catch (err: any) {
+        console.error('Token validation error:', err);
+        setTokenStatus('invalid');
+        setError('This password reset link is invalid or has expired. Please request a new one.');
       }
     };
 
-    handleHashParams();
-  }, []);
+    validateToken();
+  }, [searchParams]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (tokenStatus !== 'valid') {
+      setError('Invalid reset token. Please request a new password reset link.');
+      return;
+    }
+
+    // Check if all validations pass
+    const allValidationsPass = Object.values(validations).every(v => v);
+    if (!allValidationsPass) {
+      setError('Please ensure all password requirements are met.');
+      return;
+    }
+
     setLoading(true);
-    setMessage(null);
-
-    if (password !== confirmPassword) {
-      setMessage({
-        type: 'error',
-        text: 'Passwords do not match.'
-      });
-      setLoading(false);
-      return;
-    }
-
-    if (password.length < 8) {
-      setMessage({
-        type: 'error',
-        text: 'Password must be at least 8 characters long.'
-      });
-      setLoading(false);
-      return;
-    }
+    setError('');
+    setSuccess('');
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password
-      });
+      const { error } = await supabase.auth.updateUser({ password });
 
       if (error) throw error;
 
-      // Password updated successfully
-      setMessage({
-        type: 'success',
-        text: 'Password updated successfully. Redirecting to dashboard...'
-      });
-
-      // Redirect to dashboard after a brief delay
+      setSuccess('Password updated successfully! Redirecting to login...');
+      
+      // Sign out and redirect after successful password reset
+      await supabase.auth.signOut();
       setTimeout(() => {
-        router.push('/');
-        router.refresh();
-      }, 1500);
+        router.push('/auth/login');
+      }, 2000);
 
-    } catch (error: any) {
-      console.error('Reset error:', error);
-      setMessage({
-        type: 'error',
-        text: error.message || 'Failed to reset password. Please try again.'
-      });
+    } catch (err: any) {
+      console.error('Reset error:', err);
+      setError(err.message || 'Failed to reset password. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className='min-h-screen bg-gray-50 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8'>
-      <div className='max-w-md w-full space-y-8'>
-        <div className='text-center'>
-          <div className='flex justify-center mb-6'>
-            <div className='bg-blue-100 p-4 rounded-full'>
-              <RiLockLine className='w-12 h-12 text-blue-500' />
+  const ValidationIcon = ({ isValid }: { isValid: boolean }) => (
+    isValid ? 
+      <RiCheckLine className="h-5 w-5 text-green-500" /> : 
+      <RiCloseLine className="h-5 w-5 text-gray-300" />
+  );
+
+  if (tokenStatus === 'validating') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-sm">
+          <div className="animate-pulse flex space-x-4 items-center">
+            <div className="rounded-full bg-gray-200 h-12 w-12"></div>
+            <div className="flex-1 space-y-4 py-1">
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-200 rounded"></div>
+              </div>
             </div>
           </div>
-          <h1 className='text-3xl font-semibold mb-2'>
-            Set New Password
-          </h1>
-          <p className='text-gray-600'>
-            Please enter your new password below.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-6">
+        {/* Header */}
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
+            <RiLockLine className="h-6 w-6 text-blue-600" />
+          </div>
+          <h2 className="mt-4 text-2xl font-bold text-gray-900">Reset Password</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Choose a strong password for your account
           </p>
         </div>
 
-        <div className='bg-white rounded-lg shadow-sm p-6 space-y-6'>
-          <form onSubmit={handlePasswordReset} className='space-y-4'>
+        {/* Form Container */}
+        <div className="bg-white shadow-sm rounded-lg p-6">
+          <form className="space-y-4" onSubmit={handlePasswordReset}>
+            {/* Password Field */}
             <div>
-              <label htmlFor="password" className='block text-sm font-medium text-gray-700 mb-1'>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 New Password
               </label>
-              <div className='relative'>
+              <div className="mt-1 relative">
                 <input
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
+                  required
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className='w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10'
-                  required
-                  minLength={8}
-                  placeholder='Enter new password'
-                  disabled={!isValidToken}
+                  disabled={tokenStatus !== 'valid'}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <RiEyeOffLine className="h-5 w-5" />
+                    <RiEyeOffLine className="h-5 w-5 text-gray-400" />
                   ) : (
-                    <RiEyeLine className="h-5 w-5" />
+                    <RiEyeLine className="h-5 w-5 text-gray-400" />
                   )}
                 </button>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Must be at least 8 characters long
-              </p>
             </div>
 
+            {/* Confirm Password Field */}
             <div>
-              <label htmlFor="confirmPassword" className='block text-sm font-medium text-gray-700 mb-1'>
-                Confirm New Password
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                Confirm Password
               </label>
-              <div className='relative'>
+              <div className="mt-1 relative">
                 <input
                   id="confirmPassword"
+                  name="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
+                  required
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className='w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10'
-                  required
-                  minLength={8}
-                  placeholder='Confirm new password'
-                  disabled={!isValidToken}
+                  disabled={tokenStatus !== 'valid'}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
-                    <RiEyeOffLine className="h-5 w-5" />
+                    <RiEyeOffLine className="h-5 w-5 text-gray-400" />
                   ) : (
-                    <RiEyeLine className="h-5 w-5" />
+                    <RiEyeLine className="h-5 w-5 text-gray-400" />
                   )}
                 </button>
               </div>
             </div>
 
-            {message && (
-              <div className={`p-3 rounded-md text-sm ${
-                message.type === 'success' 
-                  ? 'bg-green-50 text-green-700' 
-                  : 'bg-red-50 text-red-700'
-              }`}>
-                {message.text}
+            {/* Password Requirements */}
+            <div className="rounded-md bg-gray-50 p-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                Password Requirements:
+              </p>
+              <ul className="space-y-1 text-sm text-gray-600">
+                <li className="flex items-center">
+                  <ValidationIcon isValid={validations.hasMinLength} />
+                  <span className="ml-2">At least 8 characters</span>
+                </li>
+                <li className="flex items-center">
+                  <ValidationIcon isValid={validations.hasUpperCase} />
+                  <span className="ml-2">One uppercase letter</span>
+                </li>
+                <li className="flex items-center">
+                  <ValidationIcon isValid={validations.hasLowerCase} />
+                  <span className="ml-2">One lowercase letter</span>
+                </li>
+                <li className="flex items-center">
+                  <ValidationIcon isValid={validations.hasNumber} />
+                  <span className="ml-2">One number</span>
+                </li>
+                <li className="flex items-center">
+                  <ValidationIcon isValid={validations.matches} />
+                  <span className="ml-2">Passwords match</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="rounded-md bg-red-50 p-3">
+                <div className="flex">
+                  <RiCloseLine className="h-5 w-5 text-red-400 flex-shrink-0" />
+                  <p className="ml-2 text-sm text-red-700">{error}</p>
+                </div>
               </div>
             )}
 
+            {/* Success Message */}
+            {success && (
+              <div className="rounded-md bg-green-50 p-3">
+                <div className="flex">
+                  <RiCheckLine className="h-5 w-5 text-green-400 flex-shrink-0" />
+                  <p className="ml-2 text-sm text-green-700">{success}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading || !isValidToken}
-              className='w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50'
+              disabled={loading || tokenStatus !== 'valid' || !Object.values(validations).every(v => v)}
+              className={`w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white 
+                ${loading || tokenStatus !== 'valid' || !Object.values(validations).every(v => v)
+                  ? 'bg-blue-300 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                }`}
             >
               {loading ? 'Updating Password...' : 'Update Password'}
             </button>
-          </form>
 
-          {message?.type === 'error' && (
-            <div className='text-center'>
-              <Link 
-                href="/auth/forgot-password"
-                className='text-sm text-blue-500 hover:text-blue-600'
-              >
-                Request New Reset Link
-              </Link>
-            </div>
-          )}
+            {/* Request New Link */}
+            {tokenStatus === 'invalid' && (
+              <div className="text-center mt-4">
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                >
+                  Request New Reset Link
+                </Link>
+              </div>
+            )}
+          </form>
         </div>
       </div>
     </div>
