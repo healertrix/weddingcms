@@ -8,8 +8,16 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/pm'],
   webpack: (config) => {
     config.module.rules.push({
-      test: /\.css$/i,
-      use: ['style-loader', 'css-loader'],
+      test: /\.css$/,
+      use: [
+        {
+          loader: 'style-loader',
+          options: {
+            injectType: 'singletonStyleTag'
+          }
+        },
+        'css-loader'
+      ],
     });
     return config;
   },
