@@ -224,7 +224,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
           <FormField label="Title" required>
             <Input
               required
-              value={formData.title}
+              value={formData.title || ''}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Enter film title"
             />
@@ -236,15 +236,16 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
             <Input
               required
               type="date"
-              value={formData.wedding_date}
+              value={formData.wedding_date || ''}
               onChange={(e) => setFormData({ ...formData, wedding_date: e.target.value })}
+              placeholder="Select wedding date"
             />
           </FormField>
 
           <FormField label="Location" required>
             <Input
               required
-              value={formData.location}
+              value={formData.location || ''}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               placeholder="e.g., Mumbai, India"
             />
@@ -256,7 +257,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
             className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 border-gray-300 focus:ring-[#8B4513]"
             rows={8}
             required
-            value={formData.description}
+            value={formData.description || ''}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             placeholder="Write film description here..."
           />
@@ -268,7 +269,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
               <Input
                 type="url"
                 required
-                value={formData.video_url}
+                value={formData.video_url || ''}
                 onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
                 placeholder="Enter YouTube or Vimeo URL"
                 className={formData.video_url && !isValidVideo ? 'border-red-500' : ''}
