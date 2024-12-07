@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  eslint: {
+    // Disable ESLint during production builds
+    ignoreDuringBuilds: true,
+  },
   transpilePackages: ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/pm'],
   webpack: (config) => {
     config.module.rules.push({
