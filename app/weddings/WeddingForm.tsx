@@ -1053,6 +1053,12 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
               height={1080}
               priority
             />
+            {/* Image counter */}
+            {previewImageIndex !== -1 && formData.gallery_images && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-full text-sm">
+                {previewImageIndex + 1} / {formData.gallery_images.length}
+              </div>
+            )}
           </div>
         </div>
       )}
