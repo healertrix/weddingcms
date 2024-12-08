@@ -896,7 +896,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
                 <div className="bg-red-50 p-4 rounded-lg space-y-2">
                   <div className="font-medium text-red-800">This will permanently delete:</div>
                   <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
-                    {formData.featuredImageUrl && <li>The featured image</li>}
+                    {formData.featuredImageKey && <li>The featured image</li>}
                     {formData.gallery_images && formData.gallery_images.length > 0 && (
                       <li>All uploaded gallery images ({formData.gallery_images.length} images)</li>
                     )}
