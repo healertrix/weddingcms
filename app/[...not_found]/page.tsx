@@ -1,10 +1,14 @@
-'use client';
-
+import { Metadata } from 'next';
 import Link from 'next/link';
 
-export default function NotFound() {
+export const metadata: Metadata = {
+  title: '404 - Page Not Found',
+  description: "The page you're looking for doesn't exist or has been moved.",
+};
+
+export default function NotFoundPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 text-center">
         <div>
           <h1 className="text-6xl font-bold text-[#8B4513]">404</h1>
@@ -22,6 +26,6 @@ export default function NotFound() {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 } 
