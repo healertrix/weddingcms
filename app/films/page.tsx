@@ -25,7 +25,6 @@ type Film = {
   image_key: string | null;
   created_at: string;
   updated_at: string;
-  is_featured_home: boolean;
   missingFields?: string[];
 };
 
@@ -116,25 +115,6 @@ export default function FilmsPage() {
       );
     } catch (error) {
       console.error('Error updating film status:', error);
-    }
-  };
-
-  const handleFeaturedChange = async (filmId: string, featured: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('films')
-        .update({ is_featured_home: featured })
-        .eq('id', filmId);
-
-      if (error) throw error;
-
-      setFilms(prevFilms =>
-        prevFilms.map(f =>
-          f.id === filmId ? { ...f, is_featured_home: featured } : f
-        )
-      );
-    } catch (error) {
-      console.error('Error updating featured status:', error);
     }
   };
 
