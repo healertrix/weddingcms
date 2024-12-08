@@ -109,14 +109,10 @@ export default function ImageDropzone({
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
-          headers: {
-            'Accept': 'application/json',
-          },
           credentials: 'include'
         });
 
         console.log('Upload response status:', response.status);
-        console.log('Upload response headers:', Object.fromEntries(response.headers.entries()));
 
         let data;
         try {
@@ -127,20 +123,42 @@ export default function ImageDropzone({
             data = JSON.parse(textResponse);
           } catch (parseError) {
             console.error('JSON parse error:', parseError);
-            throw new Error(`Invalid JSON response: ${textResponse}`);
+            setUploadStatus({
+              status: 'error',
+              message: 'Server returned invalid response format'
+            });
+            return;
           }
         } catch (error) {
           console.error('Response reading error:', error);
-          throw error;
+          setUploadStatus({
+            status: 'error',
+            message: 'Failed to read server response'
+          });
+          return;
         }
 
         if (!response.ok) {
-          throw new Error(data.error || `Upload failed with status ${response.status}`);
+          const errorMessage = typeof data.error === 'string' 
+            ? data.error 
+            : typeof data.details === 'string'
+              ? data.details
+              : 'Upload failed';
+            
+          setUploadStatus({
+            status: 'error',
+            message: errorMessage
+          });
+          return;
         }
 
         if (!data.key || !data.url) {
           console.error('Invalid response data:', data);
-          throw new Error('Invalid upload response format - missing key or url');
+          setUploadStatus({
+            status: 'error',
+            message: 'Server returned incomplete response'
+          });
+          return;
         }
 
         uploadedFiles.push({ 
@@ -161,7 +179,11 @@ export default function ImageDropzone({
       console.error('Upload error:', error);
       setUploadStatus({
         status: 'error',
-        message: error instanceof Error ? error.message : 'Failed to upload image'
+        message: error instanceof Error 
+          ? error.message 
+          : typeof error === 'string'
+            ? error
+            : 'Failed to upload image'
       });
       setUploadProgress(0);
     }

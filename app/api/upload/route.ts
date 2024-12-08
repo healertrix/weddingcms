@@ -50,8 +50,8 @@ export async function POST(request: Request) {
     if (missingEnvVars.length > 0) {
       return NextResponse.json(
         { 
-          error: 'Missing configuration',
-          details: `Missing required configuration: ${missingEnvVars.join(', ')}`
+          error: 'Missing required configuration',
+          details: missingEnvVars.join(', ')
         },
         { 
           status: 500,
@@ -66,8 +66,14 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error('FormData parsing error:', error);
       return NextResponse.json(
-        { error: 'Invalid form data', details: error instanceof Error ? error.message : 'Unknown error' },
-        { status: 400, headers: corsHeaders }
+        { 
+          error: 'Failed to parse form data',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        },
+        { 
+          status: 400,
+          headers: corsHeaders
+        }
       );
     }
 
@@ -138,26 +144,20 @@ export async function POST(request: Request) {
 
     if (error.code === 'NoSuchBucket') {
       errorMessage = 'Storage bucket not found';
-      details = 'The specified storage bucket does not exist';
     } else if (error.code === 'AccessDenied') {
       errorMessage = 'Access denied to storage';
-      details = 'Check if your access credentials are correct';
     } else if (error.code === 'NetworkingError') {
       errorMessage = 'Network error occurred';
-      details = 'Check your internet connection and try again';
     } else if (error.code === 'InvalidAccessKeyId') {
       errorMessage = 'Invalid access key';
-      details = 'The provided access key is not valid';
     } else if (error.code === 'SignatureDoesNotMatch') {
       errorMessage = 'Invalid credentials';
-      details = 'The provided access credentials are not valid';
     }
 
     return NextResponse.json(
       { 
         error: errorMessage,
-        details: details,
-        code: error.code
+        details: details
       },
       { 
         status: 500,
