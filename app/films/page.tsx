@@ -168,8 +168,11 @@ export default function FilmsPage() {
   };
 
   const handleDeleteClick = (id: string) => {
-    setDeletingFilm(id);
-    setShowDeleteConfirm(true);
+    const film = films.find(f => f.id === id);
+    if (film) {
+      setDeletingFilm(film);
+      setShowDeleteConfirm(true);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -375,7 +378,7 @@ export default function FilmsPage() {
                     </Button>
                     <Button
                       variant="secondary"
-                      onClick={() => handleDeleteClick(film)}
+                      onClick={() => handleDeleteClick(film.id)}
                       className="text-red-600 hover:bg-red-50"
                       title="Delete film"
                     >
