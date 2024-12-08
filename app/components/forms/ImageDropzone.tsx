@@ -83,8 +83,20 @@ export default function ImageDropzone({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
+  const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB limit
+
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
+
+    // Validate file sizes
+    const oversizedFiles = acceptedFiles.filter(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      setUploadStatus({
+        status: 'error',
+        message: `File${oversizedFiles.length > 1 ? 's' : ''} too large. Maximum size is 4MB per file.`
+      });
+      return;
+    }
 
     setUploadStatus({ status: 'uploading' });
     setUploadProgress(0);
@@ -193,7 +205,20 @@ export default function ImageDropzone({
       'image/*': ['.jpeg', '.jpg', '.png', '.gif']
     },
     multiple: multiple,
-    disabled: disabled || uploadStatus.status === 'uploading'
+    disabled: disabled || uploadStatus.status === 'uploading',
+    maxSize: MAX_FILE_SIZE,
+    onDropRejected: (rejectedFiles) => {
+      const sizeErrors = rejectedFiles.filter(
+        ({ errors }) => errors.some(error => error.code === 'file-too-large')
+      );
+      
+      if (sizeErrors.length > 0) {
+        setUploadStatus({
+          status: 'error',
+          message: `File${sizeErrors.length > 1 ? 's' : ''} too large. Maximum size is 4MB per file.`
+        });
+      }
+    }
   });
 
   const renderImages = () => {

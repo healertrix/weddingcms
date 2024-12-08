@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   transpilePackages: ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/pm'],
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb' // Increased size limit for large images
+    },
+    responseLimit: '50mb'
+  },
   images: {
     remotePatterns: [
       {
