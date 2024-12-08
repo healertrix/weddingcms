@@ -1097,7 +1097,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
           onConfirm={() => setShowErrorAlert(false)}
           onCancel={() => setShowErrorAlert(false)}
           confirmButtonClassName="bg-gray-600 hover:bg-gray-700 text-white"
-          hideCancel
+          showCancelButton={false}
         />
       )}
 
