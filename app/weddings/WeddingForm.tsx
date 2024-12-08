@@ -470,7 +470,6 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
         }}
         closeButtonLabel={isUploading ? "Upload in progress..." : (hasAnyData() ? "Save as Draft" : "Cancel")}
         icon={hasAnyData() ? RiSaveLine : RiCloseLine}
-        disableClose={isUploading}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <FormField label="Couple Names" required>
