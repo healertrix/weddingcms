@@ -22,15 +22,6 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
-  // Check if the request is from the allowed origin
-  const origin = request.headers.get('origin');
-  if (origin !== 'https://weddingcms.vercel.app') {
-    return NextResponse.json(
-      { error: 'Unauthorized origin' },
-      { status: 403, headers: corsHeaders }
-    );
-  }
-
   try {
     // Log environment check
     const envCheck = {
@@ -102,13 +93,19 @@ export async function POST(request: Request) {
     const uploadResult = await s3.upload(params).promise();
     console.log('Upload successful:', uploadResult);
 
+    // Construct the URL using the bucket and endpoint
     const url = `https://${process.env.DIGITAL_OCEAN_SPACES_BUCKET}.${process.env.DIGITAL_OCEAN_SPACES_ENDPOINT}/${fileName}`;
     console.log('Generated URL:', url);
 
+    // Return both the key and URL in a consistent format
     return NextResponse.json(
-      { url, key: fileName },
+      { 
+        key: fileName,
+        url: url
+      },
       { headers: corsHeaders }
     );
+
   } catch (error: any) {
     console.error('Upload error:', {
       message: error.message,

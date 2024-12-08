@@ -105,11 +105,22 @@ export default function ImageDropzone({
         });
 
         if (!response.ok) {
-          throw new Error('Upload failed');
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Upload failed');
         }
 
         const data = await response.json();
-        uploadedFiles.push({ key: data.key, url: data.url });
+        console.log('Upload response:', data);  // Debug log
+        
+        // Ensure we have both key and url from the response
+        if (!data.key || !data.url) {
+          throw new Error('Invalid upload response format');
+        }
+
+        uploadedFiles.push({ 
+          key: data.key,
+          url: data.url 
+        });
         
         // Update progress based on completed files
         setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
@@ -125,7 +136,7 @@ export default function ImageDropzone({
       console.error('Upload error:', error);
       setUploadStatus({
         status: 'error',
-        message: 'Failed to upload image'
+        message: error instanceof Error ? error.message : 'Failed to upload image'
       });
       setUploadProgress(0);
     }

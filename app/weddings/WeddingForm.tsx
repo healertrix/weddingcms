@@ -145,11 +145,13 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
   };
 
   const handleGalleryImagesUpload = (files: Array<{ key: string; url: string }>) => {
-    const newUrls = files.map(file => file.url);
+    const newImages = files.map(file => file.url);
     setFormData(prevData => ({
       ...prevData,
-      gallery_images: [...(prevData.gallery_images || []), ...newUrls]
+      gallery_images: [...(prevData.gallery_images || []), ...newImages]
     }));
+    // Reset upload state
+    setIsUploading(false);
   };
 
   const handleDeleteClick = () => {
