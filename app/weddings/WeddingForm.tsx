@@ -1132,6 +1132,7 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
           }
           confirmLabel="Please wait..."
           onConfirm={() => {}}
+          onCancel={() => {}}
           confirmButtonClassName="bg-[#8B4513]/50 cursor-not-allowed hover:bg-[#8B4513]/50"
           showCancelButton={false}
           showCloseButton={false}
