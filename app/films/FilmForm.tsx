@@ -283,7 +283,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
           ) : (
             <div>
               <div className="relative rounded-lg overflow-hidden">
-                <VideoPreview url={formData.video_url} />
+                {formData.video_url && <VideoPreview url={formData.video_url} />}
                 <div className="absolute top-3 right-3 flex gap-2">
                   <button
                     type="button"
