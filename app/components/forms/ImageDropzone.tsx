@@ -99,22 +99,48 @@ export default function ImageDropzone({
         formData.append('file', file);
         formData.append('folder', folder);
 
+        console.log('Uploading file:', {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          folder: folder
+        });
+
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
+          headers: {
+            'Accept': 'application/json',
+          },
+          credentials: 'include'
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Upload failed');
+        console.log('Upload response status:', response.status);
+        console.log('Upload response headers:', Object.fromEntries(response.headers.entries()));
+
+        let data;
+        try {
+          const textResponse = await response.text();
+          console.log('Raw response:', textResponse);
+          
+          try {
+            data = JSON.parse(textResponse);
+          } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            throw new Error(`Invalid JSON response: ${textResponse}`);
+          }
+        } catch (error) {
+          console.error('Response reading error:', error);
+          throw error;
         }
 
-        const data = await response.json();
-        console.log('Upload response:', data);  // Debug log
-        
-        // Ensure we have both key and url from the response
+        if (!response.ok) {
+          throw new Error(data.error || `Upload failed with status ${response.status}`);
+        }
+
         if (!data.key || !data.url) {
-          throw new Error('Invalid upload response format');
+          console.error('Invalid response data:', data);
+          throw new Error('Invalid upload response format - missing key or url');
         }
 
         uploadedFiles.push({ 
@@ -122,7 +148,6 @@ export default function ImageDropzone({
           url: data.url 
         });
         
-        // Update progress based on completed files
         setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
       }
 

@@ -4,8 +4,9 @@ import AWS from 'aws-sdk';
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'https://weddingcms.vercel.app',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true'
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+  'Access-Control-Allow-Credentials': 'true',
+  'Content-Type': 'application/json'
 };
 
 const s3 = new AWS.S3({
@@ -18,11 +19,19 @@ const s3 = new AWS.S3({
 });
 
 export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+  return new NextResponse(null, { headers: corsHeaders });
 }
 
 export async function POST(request: Request) {
+  if (request.method === 'OPTIONS') {
+    return new NextResponse(null, { headers: corsHeaders });
+  }
+
   try {
+    console.log('Request method:', request.method);
+    console.log('Request headers:', Object.fromEntries(request.headers.entries()));
+    console.log('Request origin:', request.headers.get('origin'));
+
     // Log environment check
     const envCheck = {
       hasEndpoint: !!process.env.DIGITAL_OCEAN_SPACES_ENDPOINT,
@@ -51,7 +60,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const formData = await request.formData();
+    let formData;
+    try {
+      formData = await request.formData();
+    } catch (error) {
+      console.error('FormData parsing error:', error);
+      return NextResponse.json(
+        { error: 'Invalid form data', details: error instanceof Error ? error.message : 'Unknown error' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     const file = formData.get('file') as File;
     const folder = formData.get('folder') as string || 'general';
     
