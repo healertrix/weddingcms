@@ -145,14 +145,18 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
   const hasUnsavedChanges = () => {
     if (!initialData) {
-      return formData.title !== '' ||
-        formData.couple_names !== '' ||
-        formData.wedding_date !== '' ||
-        formData.location !== '' ||
-        formData.description !== '' ||
-        (formData.video_url !== '' && isValidVideo);
+      // Check if any field has actual content
+      return Boolean(
+        formData.title?.trim() ||
+        formData.couple_names.trim() ||
+        formData.wedding_date ||
+        formData.location?.trim() ||
+        formData.description?.trim() ||
+        formData.video_url?.trim()
+      );
     }
 
+    // For editing existing data, compare with initial values
     return formData.title !== initialData.title ||
       formData.couple_names !== initialData.couple_names ||
       formData.wedding_date !== initialData.wedding_date ||
