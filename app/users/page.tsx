@@ -127,9 +127,10 @@ export default function UsersPage() {
                   Edit
                 </Button>
                 <Button 
-                  variant='danger' 
+                  variant='secondary' 
                   icon={RiDeleteBin6Line}
                   onClick={() => handleDeleteUser(user.id)}
+                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
                 >
                   Delete
                 </Button>
