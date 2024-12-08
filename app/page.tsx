@@ -88,42 +88,42 @@ export default function Dashboard() {
           .limit(5)
       ]);
 
-      const activities: RecentActivity[] = [
+      const activities = [
         ...(weddings.data?.map(w => ({
           id: w.id,
-          type: 'wedding',
+          type: 'wedding' as const,
           action: 'Wedding gallery added',
           details: w.couple_names,
           time: w.created_at,
           link: `/weddings?id=${w.id}`,
-          status: w.status
+          status: w.status as 'draft' | 'published'
         })) || []),
         ...(films.data?.map(f => ({
           id: f.id,
-          type: 'film',
+          type: 'film' as const,
           action: 'Film uploaded',
           details: `${f.title} - ${f.couple_names}`,
           time: f.created_at,
           link: `/films?id=${f.id}`,
-          status: f.status
+          status: f.status as 'draft' | 'published'
         })) || []),
         ...(blogs.data?.map(b => ({
           id: b.id,
-          type: 'blog',
+          type: 'blog' as const,
           action: 'Blog post created',
           details: b.title,
           time: b.created_at,
           link: `/blog?id=${b.id}`,
-          status: b.status
+          status: b.status as 'draft' | 'published'
         })) || []),
         ...(testimonials.data?.map(t => ({
           id: t.id,
-          type: 'testimonial',
+          type: 'testimonial' as const,
           action: 'Testimonial received',
           details: t.couple_names,
           time: t.created_at,
           link: `/testimonials?id=${t.id}`,
-          status: t.status
+          status: t.status as 'draft' | 'published'
         })) || [])
       ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
         .slice(0, 10);
