@@ -134,7 +134,7 @@ export default function Dashboard() {
     }
   };
 
-  const getActivityIcon = (type: string) => {
+  const getActivityIcon = (type: RecentActivity['type']) => {
     switch (type) {
       case 'wedding': return <RiCalendarLine className="w-5 h-5 text-blue-500" />;
       case 'film': return <RiVideoLine className="w-5 h-5 text-purple-500" />;
