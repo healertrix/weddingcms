@@ -568,7 +568,6 @@ export default function WeddingForm({ onClose, onSubmit, onSaveAsDraft, initialD
               ) : (
                 <ImageDropzone
                   onChange={handleFeaturedImageUpload}
-                  maxFiles={1}
                   onDelete={handleDeleteClick}
                   disabled={isDeleting || isUploading}
                   folder="weddings"
