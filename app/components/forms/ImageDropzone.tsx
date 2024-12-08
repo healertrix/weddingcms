@@ -109,31 +109,33 @@ export default function ImageDropzone({
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
-          credentials: 'include'
+          headers: {
+            'Accept': 'application/json'
+          }
         });
 
         console.log('Upload response status:', response.status);
+        const contentType = response.headers.get('content-type');
+        console.log('Response content type:', contentType);
+
+        if (!contentType?.includes('application/json')) {
+          console.error('Invalid content type:', contentType);
+          setUploadStatus({
+            status: 'error',
+            message: 'Server returned invalid content type'
+          });
+          return;
+        }
 
         let data;
         try {
-          const textResponse = await response.text();
-          console.log('Raw response:', textResponse);
-          
-          try {
-            data = JSON.parse(textResponse);
-          } catch (parseError) {
-            console.error('JSON parse error:', parseError);
-            setUploadStatus({
-              status: 'error',
-              message: 'Server returned invalid response format'
-            });
-            return;
-          }
+          data = await response.json();
+          console.log('Response data:', data);
         } catch (error) {
-          console.error('Response reading error:', error);
+          console.error('JSON parse error:', error);
           setUploadStatus({
             status: 'error',
-            message: 'Failed to read server response'
+            message: 'Failed to parse server response'
           });
           return;
         }
@@ -143,7 +145,7 @@ export default function ImageDropzone({
             ? data.error 
             : typeof data.details === 'string'
               ? data.details
-              : 'Upload failed';
+              : `Upload failed with status ${response.status}`;
             
           setUploadStatus({
             status: 'error',
@@ -169,11 +171,9 @@ export default function ImageDropzone({
         setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
       }
 
-      setTimeout(() => {
-        onChange(uploadedFiles);
-        setUploadStatus({ status: 'success' });
-        setUploadProgress(0);
-      }, 500);
+      onChange(uploadedFiles);
+      setUploadStatus({ status: 'success' });
+      setUploadProgress(0);
 
     } catch (error) {
       console.error('Upload error:', error);
@@ -181,9 +181,7 @@ export default function ImageDropzone({
         status: 'error',
         message: error instanceof Error 
           ? error.message 
-          : typeof error === 'string'
-            ? error
-            : 'Failed to upload image'
+          : 'Failed to upload image'
       });
       setUploadProgress(0);
     }

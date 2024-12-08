@@ -5,8 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': 'https://weddingcms.vercel.app',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-  'Access-Control-Allow-Credentials': 'true',
-  'Content-Type': 'application/json'
+  'Access-Control-Allow-Credentials': 'true'
 };
 
 const s3 = new AWS.S3({
@@ -19,20 +18,36 @@ const s3 = new AWS.S3({
 });
 
 export async function OPTIONS() {
-  return new NextResponse(null, { headers: corsHeaders });
+  return new NextResponse(null, { 
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+    }
+  });
 }
 
 export async function POST(request: Request) {
-  if (request.method === 'OPTIONS') {
-    return new NextResponse(null, { headers: corsHeaders });
-  }
+  // Add response headers with proper content type
+  const responseHeaders = {
+    ...corsHeaders,
+    'Content-Type': 'application/json',
+  };
 
   try {
+    // Handle OPTIONS request
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, { 
+        status: 200,
+        headers: responseHeaders
+      });
+    }
+
+    // Log request details
     console.log('Request method:', request.method);
-    console.log('Request headers:', Object.fromEntries(request.headers.entries()));
     console.log('Request origin:', request.headers.get('origin'));
 
-    // Log environment check
+    // Check environment variables
     const envCheck = {
       hasEndpoint: !!process.env.DIGITAL_OCEAN_SPACES_ENDPOINT,
       hasBucket: !!process.env.DIGITAL_OCEAN_SPACES_BUCKET,
@@ -40,9 +55,6 @@ export async function POST(request: Request) {
       hasSecretKey: !!process.env.DIGITAL_OCEAN_SPACES_SECRET_KEY,
     };
     
-    console.log('Environment check:', envCheck);
-
-    // Check if any environment variables are missing
     const missingEnvVars = Object.entries(envCheck)
       .filter(([_, hasValue]) => !hasValue)
       .map(([name]) => name.replace('has', ''));
@@ -55,11 +67,12 @@ export async function POST(request: Request) {
         },
         { 
           status: 500,
-          headers: corsHeaders
+          headers: responseHeaders
         }
       );
     }
 
+    // Parse form data
     let formData;
     try {
       formData = await request.formData();
@@ -72,7 +85,7 @@ export async function POST(request: Request) {
         },
         { 
           status: 400,
-          headers: corsHeaders
+          headers: responseHeaders
         }
       );
     }
@@ -85,11 +98,12 @@ export async function POST(request: Request) {
         { error: 'No file provided' },
         { 
           status: 400,
-          headers: corsHeaders
+          headers: responseHeaders
         }
       );
     }
 
+    // Log file details
     console.log('File details:', {
       name: file.name,
       type: file.type,
@@ -105,42 +119,31 @@ export async function POST(request: Request) {
       Body: Buffer.from(buffer),
       ACL: 'public-read',
       ContentType: file.type,
-      CacheControl: 'max-age=31536000', // 1 year cache
+      CacheControl: 'max-age=31536000'
     };
 
-    console.log('Attempting upload with params:', {
-      Bucket: params.Bucket,
-      Key: params.Key,
-      ContentType: params.ContentType,
-      ACL: params.ACL
-    });
-
     const uploadResult = await s3.upload(params).promise();
-    console.log('Upload successful:', uploadResult);
-
-    // Construct the URL using the bucket and endpoint
+    
+    // Construct the URL
     const url = `https://${process.env.DIGITAL_OCEAN_SPACES_BUCKET}.${process.env.DIGITAL_OCEAN_SPACES_ENDPOINT}/${fileName}`;
     console.log('Generated URL:', url);
 
-    // Return both the key and URL in a consistent format
+    // Return success response
     return NextResponse.json(
       { 
         key: fileName,
         url: url
       },
-      { headers: corsHeaders }
+      { 
+        status: 200,
+        headers: responseHeaders
+      }
     );
 
   } catch (error: any) {
-    console.error('Upload error:', {
-      message: error.message,
-      code: error.code,
-      name: error.name,
-      stack: error.stack
-    });
+    console.error('Upload error:', error);
 
     let errorMessage = 'Failed to upload file';
-    let details = error.message;
 
     if (error.code === 'NoSuchBucket') {
       errorMessage = 'Storage bucket not found';
@@ -157,11 +160,11 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { 
         error: errorMessage,
-        details: details
+        details: error.message || 'Unknown error occurred'
       },
       { 
         status: 500,
-        headers: corsHeaders
+        headers: responseHeaders
       }
     );
   }
