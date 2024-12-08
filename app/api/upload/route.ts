@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import AWS from 'aws-sdk';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://weddingcms.vercel.app',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Credentials': 'true'
+};
+
 const s3 = new AWS.S3({
   endpoint: `https://${process.env.DIGITAL_OCEAN_SPACES_ENDPOINT}`,
   accessKeyId: process.env.DIGITAL_OCEAN_SPACES_ACCESS_KEY,
@@ -10,7 +17,20 @@ const s3 = new AWS.S3({
   s3ForcePathStyle: false
 });
 
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(request: Request) {
+  // Check if the request is from the allowed origin
+  const origin = request.headers.get('origin');
+  if (origin !== 'https://weddingcms.vercel.app') {
+    return NextResponse.json(
+      { error: 'Unauthorized origin' },
+      { status: 403, headers: corsHeaders }
+    );
+  }
+
   try {
     // Log environment check
     const envCheck = {
@@ -33,7 +53,10 @@ export async function POST(request: Request) {
           error: 'Missing configuration',
           details: `Missing required configuration: ${missingEnvVars.join(', ')}`
         },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: corsHeaders
+        }
       );
     }
 
@@ -44,7 +67,10 @@ export async function POST(request: Request) {
     if (!file) {
       return NextResponse.json(
         { error: 'No file provided' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: corsHeaders
+        }
       );
     }
 
@@ -63,6 +89,7 @@ export async function POST(request: Request) {
       Body: Buffer.from(buffer),
       ACL: 'public-read',
       ContentType: file.type,
+      CacheControl: 'max-age=31536000', // 1 year cache
     };
 
     console.log('Attempting upload with params:', {
@@ -78,7 +105,10 @@ export async function POST(request: Request) {
     const url = `https://${process.env.DIGITAL_OCEAN_SPACES_BUCKET}.${process.env.DIGITAL_OCEAN_SPACES_ENDPOINT}/${fileName}`;
     console.log('Generated URL:', url);
 
-    return NextResponse.json({ url, key: fileName });
+    return NextResponse.json(
+      { url, key: fileName },
+      { headers: corsHeaders }
+    );
   } catch (error: any) {
     console.error('Upload error:', {
       message: error.message,
@@ -113,7 +143,10 @@ export async function POST(request: Request) {
         details: details,
         code: error.code
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: corsHeaders
+      }
     );
   }
 } 
