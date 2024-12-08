@@ -159,8 +159,13 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
 
     const submissionData: TestimonialFormData = {
       ...formData,
+      coupleNames: formData.coupleNames.trim(),
       weddingDate: formData.weddingDate?.trim() || null,
-      videoUrl: formData.videoUrl?.trim() || ''
+      location: formData.location.trim(),
+      review: formData.review.trim(),
+      imageKey: formData.imageKey || '',
+      imageUrl: formData.imageUrl || '',
+      videoUrl: (formData.videoUrl?.trim() && isValidVideo) ? formData.videoUrl.trim() : ''
     };
 
     if (saveAsDraft) {
@@ -250,7 +255,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       formData.weddingDate ||
       formData.location?.trim() ||
       formData.review?.trim() ||
-      formData.videoUrl?.trim() ||
+      (formData.videoUrl?.trim() && isValidVideo) ||
       formData.imageUrl
     );
   };

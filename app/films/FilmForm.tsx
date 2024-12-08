@@ -101,7 +101,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
       wedding_date: formData.wedding_date || null,
       location: formData.location?.trim() || null,
       description: formData.description?.trim() || null,
-      video_url: formData.video_url?.trim() || null,
+      video_url: (formData.video_url?.trim() && isValidVideo) ? formData.video_url.trim() : null,
       status: 'published' as const
     };
 
@@ -123,7 +123,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
       wedding_date: formData.wedding_date || null,
       location: formData.location?.trim() || null,
       description: formData.description?.trim() || null,
-      video_url: formData.video_url?.trim() || null,
+      video_url: (formData.video_url?.trim() && isValidVideo) ? formData.video_url.trim() : null,
       status: 'draft' as const
     };
 
@@ -144,25 +144,20 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
   };
 
   const hasUnsavedChanges = () => {
-    if (!initialData) {
-      // Check if any field has actual content
-      return Boolean(
-        formData.title?.trim() ||
-        formData.couple_names.trim() ||
-        formData.wedding_date ||
-        formData.location?.trim() ||
-        formData.description?.trim() ||
-        formData.video_url?.trim()
-      );
+    // In edit mode, always show "Save as Draft"
+    if (initialData) {
+      return true;
     }
 
-    // For editing existing data, compare with initial values
-    return formData.title !== initialData.title ||
-      formData.couple_names !== initialData.couple_names ||
-      formData.wedding_date !== initialData.wedding_date ||
-      formData.location !== initialData.location ||
-      formData.description !== initialData.description ||
-      formData.video_url !== initialData.video_url;
+    // For new films, check if any field has actual content
+    return Boolean(
+      formData.title?.trim() ||
+      formData.couple_names.trim() ||
+      formData.wedding_date ||
+      formData.location?.trim() ||
+      formData.description?.trim() ||
+      (formData.video_url?.trim() && isValidVideo)  // Only count video if URL is valid
+    );
   };
 
   const getMissingFields = () => {
@@ -198,7 +193,7 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
             wedding_date: formData.wedding_date || null,
             location: formData.location?.trim() || null,
             description: formData.description?.trim() || null,
-            video_url: formData.video_url?.trim() || null,
+            video_url: (formData.video_url?.trim() && isValidVideo) ? formData.video_url.trim() : null,
             status: 'draft' as const
           };
           console.log('Saving draft on close with data:', filmData);
