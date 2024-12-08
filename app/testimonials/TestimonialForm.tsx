@@ -319,7 +319,6 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
         }}
         closeButtonLabel={isUploading ? "Upload in progress..." : (hasUnsavedChanges() ? "Save as Draft" : "Cancel")}
         icon={hasUnsavedChanges() ? RiSaveLine : RiCloseLine}
-        disableClose={isUploading}
       >
         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
