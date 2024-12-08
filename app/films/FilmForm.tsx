@@ -383,6 +383,10 @@ export default function FilmForm({ onClose, onSubmit, onSaveAsDraft, initialData
             setShowCoupleNameWarning(false);
             focusCoupleNames();
           }}
+          onCancel={() => {
+            setShowCoupleNameWarning(false);
+            focusCoupleNames();
+          }}
           showCancelButton={false}
           confirmButtonClassName="bg-[#92400E] hover:bg-[#78340F] text-white"
           showCloseButton={false}
