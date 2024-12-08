@@ -255,6 +255,16 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     );
   };
 
+  const getMissingFields = () => {
+    const missingFields = [];
+    if (!formData.coupleNames?.trim()) missingFields.push('Couple Names');
+    if (!formData.weddingDate?.trim()) missingFields.push('Wedding Date');
+    if (!formData.location?.trim()) missingFields.push('Location');
+    if (!formData.review?.trim()) missingFields.push('Review');
+    if (!formData.videoUrl?.trim() || !isValidVideo) missingFields.push('Valid Video URL');
+    return missingFields;
+  };
+
   const handleSaveAsDraft = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!formData.coupleNames?.trim()) {
