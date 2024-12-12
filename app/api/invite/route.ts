@@ -1,70 +1,86 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 
-const supabaseAdmin = createClient(
+const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export async function POST(request: Request) {
   try {
     const { email } = await request.json();
-    
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401 }
+    if (!email) {
+      return NextResponse.json(
+        { error: 'Email is required' },
+        { status: 400 }
       );
     }
 
-    const { data: currentUserRole } = await supabase
+    // Check if user already exists
+    const { data: existingUser } = await supabase
       .from('cms_users')
-      .select('role')
-      .eq('id', user.id)
+      .select('*')
+      .eq('email', email)
       .single();
 
-    if (!currentUserRole || currentUserRole.role !== 'admin') {
-      return new NextResponse(
-        JSON.stringify({ error: 'Unauthorized - Admin access required' }),
-        { status: 403 }
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 400 }
       );
     }
 
-    // Send invitation with direct redirect to invite page
-    const { data, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/invite`,
-      data: {
-        role: 'editor'
-      },
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/invite`
+    // Invite the user using admin API
+    const { data, error } = await supabase.auth.admin.inviteUserByEmail(
+      email,
+      {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/invite`,
+        data: {
+          role: 'editor'
+        }
       }
-    });
+    );
 
-    if (inviteError) {
-      throw inviteError;
+    if (error) {
+      console.error('Error inviting user:', error);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({ success: true, data });
+    // Create user record in cms_users table
+    const { error: insertError } = await supabase
+      .from('cms_users')
+      .insert([
+        {
+          id: data.user.id,
+          email: email,
+          role: 'editor',
+          created_at: new Date().toISOString()
+        }
+      ]);
+
+    if (insertError) {
+      console.error('Error creating cms user:', insertError);
+      // Try to clean up the invited auth user if cms_users creation fails
+      await supabase.auth.admin.deleteUser(data.user.id);
+      return NextResponse.json(
+        { error: 'Failed to create user record' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Invitation sent successfully'
+    });
+
   } catch (error: any) {
-    console.error('Invitation error:', error);
-    return new NextResponse(
-      JSON.stringify({ error: error.message }),
+    console.error('Error in invite route:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
