@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
-import { RiAddLine, RiDeleteBin6Line, RiCheckLine, RiMailLine, RiMailSendLine } from 'react-icons/ri';
+import { RiAddLine, RiDeleteBin6Line, RiCheckLine, RiMailLine, RiMailSendLine, RiAlertLine } from 'react-icons/ri';
 
 type User = {
   id: string;
@@ -18,6 +18,10 @@ export default function UsersPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [deleteProgress, setDeleteProgress] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<'admin' | 'editor'>('editor');
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,20 +97,54 @@ export default function UsersPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  const initiateDeleteUser = (user: User) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+    setDeleteProgress(0);
+    setIsDeleting(false);
+  };
 
-    const { error } = await supabase
-      .from('cms_users')
-      .delete()
-      .eq('id', userId);
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
 
-    if (error) {
+    setIsDeleting(true);
+    setDeleteProgress(10);
+
+    try {
+      // Delete user through our API endpoint
+      const response = await fetch('/api/delete-auth-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: userToDelete.id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+
+      setDeleteProgress(100);
+      
+      // Refresh the users list
+      await fetchUsers();
+      
+      // Close the modal and reset states
+      setTimeout(() => {
+        setShowDeleteModal(false);
+        setUserToDelete(null);
+        setDeleteProgress(0);
+        setIsDeleting(false);
+      }, 500);
+
+    } catch (error: any) {
       console.error('Error deleting user:', error);
-      return;
+      alert(error.message || 'Failed to delete user. Please try again.');
+      setDeleteProgress(0);
+      setIsDeleting(false);
     }
-
-    fetchUsers();
   };
 
   const handleUpdateRole = async (userId: string, newRole: 'admin' | 'editor') => {
@@ -190,7 +228,8 @@ export default function UsersPage() {
           </select>
         </div>
       </div>
-      
+
+      {/* Users List */}
       <div className='bg-white rounded-lg shadow'>
         <div className='grid grid-cols-1 gap-4 p-6'>
           {filteredUsers.map((user) => (
@@ -250,7 +289,7 @@ export default function UsersPage() {
                     <Button 
                       variant='secondary' 
                       icon={RiDeleteBin6Line}
-                      onClick={() => handleDeleteUser(user.id)}
+                      onClick={() => initiateDeleteUser(user)}
                       className="text-red-600 hover:bg-red-50 hover:text-red-700"
                     >
                       Delete
@@ -262,6 +301,66 @@ export default function UsersPage() {
           ))}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && userToDelete && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50'>
+          <div className='bg-white rounded-lg p-6 max-w-md w-full'>
+            <div className='flex items-center space-x-3 mb-6'>
+              <div className='bg-red-100 rounded-full p-2'>
+                <RiAlertLine className='h-6 w-6 text-red-600' />
+              </div>
+              <h2 className='text-2xl font-semibold text-gray-900'>Delete User</h2>
+            </div>
+
+            <div className='mb-6'>
+              <p className='text-gray-700 mb-4'>
+                Are you sure you want to delete the user:
+                <span className='font-semibold block mt-1'>{userToDelete.email}</span>
+              </p>
+              <p className='text-sm text-red-600'>
+                This action cannot be undone. The user will be completely removed from the system.
+              </p>
+            </div>
+
+            {isDeleting && (
+              <div className='mb-6'>
+                <div className='h-2 bg-gray-200 rounded-full overflow-hidden'>
+                  <div 
+                    className='h-full bg-blue-600 transition-all duration-500 ease-out'
+                    style={{ width: `${deleteProgress}%` }}
+                  />
+                </div>
+                <p className='text-sm text-gray-600 mt-2'>
+                  Deleting user... {deleteProgress}%
+                </p>
+              </div>
+            )}
+
+            <div className='flex justify-end space-x-2'>
+              <Button
+                variant='secondary'
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setUserToDelete(null);
+                  setDeleteProgress(0);
+                }}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant='primary'
+                className='bg-red-600 hover:bg-red-700'
+                onClick={handleDeleteUser}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete User'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Invite User Modal */}
       {showAddModal && (
