@@ -57,13 +57,19 @@ export async function middleware(req: NextRequest) {
   // Check if the user exists in cms_users table
   const { data: userData } = await supabase
     .from('cms_users')
-    .select('id')
-    .eq('id', session.user.id)
+    .select('role')
+    .eq('email', session.user.email)
     .single();
 
   // If user is authenticated but not in cms_users (hasn't completed setup)
   if (!userData && !path.startsWith('/auth/invite')) {
     const redirectUrl = new URL('/auth/invite', req.url);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Protect /users route - only allow admin access
+  if (path === '/users' && userData?.role !== 'admin') {
+    const redirectUrl = new URL('/', req.url);
     return NextResponse.redirect(redirectUrl);
   }
 
