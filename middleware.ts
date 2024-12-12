@@ -6,47 +6,64 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // Get the current URL
+  const url = new URL(req.url);
+  const path = url.pathname;
 
-  // If there's no session and trying to access protected route
-  if (!session && !req.nextUrl.pathname.startsWith('/auth/')) {
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = '/auth/login';
-    redirectUrl.searchParams.set(`redirectedFrom`, req.nextUrl.pathname);
+  // Debug log
+  console.log('URL:', url.toString());
+  console.log('Path:', path);
+
+  // Handle Supabase auth callback
+  if (path === '/auth/callback') {
+    const code = url.searchParams.get('code');
+    // Handle the callback and redirect to invite page
+    if (code) {
+      const redirectUrl = new URL('/auth/invite', req.url);
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  // Handle invitation flow
+  if (path === '/auth/invite') {
+    // If we have a token in query params, let it pass through
+    const token = url.searchParams.get('token');
+    if (token) {
+      return res;
+    }
+
+    // If we have a hash, let it pass through (the client will handle it)
+    if (url.hash) {
+      return res;
+    }
+  }
+
+  // Public routes that don't require authentication
+  const publicRoutes = ['/auth/invite', '/auth/login', '/auth/signup', '/auth/callback', '/auth/reset-password'];
+  if (publicRoutes.includes(path)) {
+    return res;
+  }
+
+  // Get the current session
+  const { data: { session } } = await supabase.auth.getSession();
+
+  // For all other routes, check if user is authenticated
+  if (!session) {
+    const redirectUrl = new URL('/auth/login', req.url);
+    redirectUrl.searchParams.set('redirectedFrom', path);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // If there's a session, check if the user is authorized
-  if (session && !req.nextUrl.pathname.startsWith('/auth/')) {
-    const { data: userData, error } = await supabase
-      .from('cms_users')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
+  // Check if the user exists in cms_users table
+  const { data: userData } = await supabase
+    .from('cms_users')
+    .select('id')
+    .eq('id', session.user.id)
+    .single();
 
-    // If there's an error or no user found, redirect to login
-    if (error || !userData) {
-      await supabase.auth.signOut();
-      const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = '/auth/login';
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    // If trying to access /users page and not an admin, redirect to home
-    if (req.nextUrl.pathname.startsWith('/users') && userData.role !== 'admin') {
-      console.log('Non-admin attempting to access Users page');
-      const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = '/';
-      return NextResponse.redirect(redirectUrl);
-    }
-  }
-
-  // If there's a session and trying to access auth pages
-  if (session && req.nextUrl.pathname.startsWith('/auth/')) {
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = '/';
+  // If user is authenticated but not in cms_users (hasn't completed setup)
+  if (!userData && !path.startsWith('/auth/invite')) {
+    const redirectUrl = new URL('/auth/invite', req.url);
     return NextResponse.redirect(redirectUrl);
   }
 
@@ -54,5 +71,14 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
-}; 
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (public folder)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+} 
