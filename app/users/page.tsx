@@ -15,8 +15,13 @@ type User = {
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'editor'>('editor');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'editor'>('all');
   const [invitedEmail, setInvitedEmail] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +30,23 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchCurrentUser();
   }, []);
+
+  const fetchCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: userData } = await supabase
+        .from('cms_users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (userData) {
+        setCurrentUser(userData);
+      }
+    }
+  };
 
   const fetchUsers = async () => {
     const { data: users, error } = await supabase
@@ -88,6 +109,28 @@ export default function UsersPage() {
     fetchUsers();
   };
 
+  const handleUpdateRole = async (userId: string, newRole: 'admin' | 'editor') => {
+    const { error } = await supabase
+      .from('cms_users')
+      .update({ role: newRole })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error updating user role:', error);
+      return;
+    }
+
+    setEditingUserId(null);
+    fetchUsers();
+  };
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const isNotCurrentUser = currentUser ? user.id !== currentUser.id : true;
+    return matchesSearch && matchesRole && isNotCurrentUser;
+  });
+
   return (
     <div className='p-8'>
       <PageHeader
@@ -99,10 +142,58 @@ export default function UsersPage() {
           </Button>
         }
       />
+
+      {/* Current User Card */}
+      {currentUser && (
+        <div className='mb-8'>
+          <h2 className='text-lg font-semibold text-gray-900 mb-4'>Your Account</h2>
+          <div className='bg-blue-50 rounded-lg p-6'>
+            <div className='flex items-center space-x-4'>
+              <div className='bg-blue-100 rounded-full p-2'>
+                <RiMailLine className='h-6 w-6 text-blue-600' />
+              </div>
+              <div>
+                <h3 className='text-lg font-medium text-gray-900'>{currentUser.email}</h3>
+                <div className='mt-1 flex items-center text-sm text-gray-500 space-x-4'>
+                  <span className='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800'>
+                    {currentUser.role}
+                  </span>
+                  <span>{new Date(currentUser.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search and Filter */}
+      <div className='mb-6 flex flex-wrap gap-4'>
+        <div className='flex-1 min-w-[200px]'>
+          <input
+            type="text"
+            placeholder="Search users by email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className='w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+          />
+        </div>
+        <div>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as 'all' | 'admin' | 'editor')}
+            className='px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+            aria-label="Filter users by role"
+          >
+            <option value="all">All Roles</option>
+            <option value="admin">Admins</option>
+            <option value="editor">Editors</option>
+          </select>
+        </div>
+      </div>
       
       <div className='bg-white rounded-lg shadow'>
         <div className='grid grid-cols-1 gap-4 p-6'>
-          {users.map((user) => (
+          {filteredUsers.map((user) => (
             <div key={user.id} className='flex items-center justify-between p-4 border rounded-lg hover:border-blue-200 transition-colors duration-200'>
               <div className='flex items-center space-x-4'>
                 <div className='bg-blue-100 rounded-full p-2'>
@@ -119,14 +210,53 @@ export default function UsersPage() {
                 </div>
               </div>
               <div className='flex space-x-2'>
-                <Button 
-                  variant='secondary' 
-                  icon={RiDeleteBin6Line}
-                  onClick={() => handleDeleteUser(user.id)}
-                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                >
-                  Delete
-                </Button>
+                {editingUserId === user.id ? (
+                  <div className='flex items-center space-x-2'>
+                    <select
+                      value={selectedRole}
+                      onChange={(e) => setSelectedRole(e.target.value as 'admin' | 'editor')}
+                      className='rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                      aria-label="Select user role"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="editor">Editor</option>
+                    </select>
+                    <Button
+                      variant='primary'
+                      icon={RiCheckLine}
+                      onClick={() => handleUpdateRole(user.id, selectedRole)}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      variant='secondary'
+                      onClick={() => setEditingUserId(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      variant='secondary'
+                      onClick={() => {
+                        setEditingUserId(user.id);
+                        setSelectedRole(user.role);
+                      }}
+                    >
+                      Edit Role
+                    </Button>
+                    <Button 
+                      variant='secondary' 
+                      icon={RiDeleteBin6Line}
+                      onClick={() => handleDeleteUser(user.id)}
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      Delete
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           ))}
