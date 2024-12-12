@@ -40,12 +40,20 @@ export default function Sidebar() {
   };
 
   const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) return;
+
     const { data: userData } = await supabase
       .from('cms_users')
       .select('role')
+      .eq('email', user.email)
       .single();
     
-    setIsAdmin(userData?.role === 'admin');
+    console.log('User role data:', userData);
+    const isAdminUser = userData?.role?.toLowerCase() === 'admin';
+    console.log('Is admin?', isAdminUser);
+    setIsAdmin(isAdminUser);
   };
 
   if (!isAuthenticated) return null;
@@ -54,6 +62,9 @@ export default function Sidebar() {
   const filteredNavItems = navigationItems.filter(item => 
     !item.adminOnly || (item.adminOnly && isAdmin)
   );
+  
+  console.log('Is admin state:', isAdmin);
+  console.log('Filtered navigation items:', filteredNavItems);
 
   return (
     <div className='w-64 bg-white flex flex-col shadow-md h-screen'>
