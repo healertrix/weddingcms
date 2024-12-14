@@ -67,8 +67,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Protect /users route - only allow admin access
-  if (path === '/users' && userData?.role !== 'admin') {
+  // Protect admin-only routes
+  const adminRoutes = ['/users', '/contact-submissions'];
+  if (adminRoutes.includes(path) && userData?.role !== 'admin') {
     const redirectUrl = new URL('/', req.url);
     return NextResponse.redirect(redirectUrl);
   }

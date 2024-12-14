@@ -4,7 +4,8 @@ import {
   RiArticleLine, 
   RiVideoLine, 
   RiUserSmileLine, 
-  RiUserSettingsLine 
+  RiUserSettingsLine,
+  RiContactsLine
 } from 'react-icons/ri';
 
 export type NavigationItem = {
@@ -44,6 +45,12 @@ export const navigationItems: NavigationItem[] = [
     path: '/testimonials',
     icon: RiUserSmileLine,
     adminOnly: false
+  },
+  {
+    label: 'Contact Submissions',
+    path: '/contact-submissions',
+    icon: RiContactsLine,
+    adminOnly: true
   },
   {
     label: 'Users',
