@@ -26,12 +26,6 @@ const nextConfig: NextConfig = {
     // Disable TypeScript during production builds
     ignoreBuildErrors: true,
   },
-  experimental: {
-    serverComponentsExternalPackages: [],
-    serverActions: {
-      bodySizeLimit: '20mb'
-    }
-  }
 };
 
 export default nextConfig;
