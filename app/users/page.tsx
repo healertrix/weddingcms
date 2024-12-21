@@ -31,6 +31,12 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClientComponentClient();
+  const [inviteProgress, setInviteProgress] = useState(0);
+  const [isDeletingExisting, setIsDeletingExisting] = useState(false);
+  const [deleteExistingProgress, setDeleteExistingProgress] = useState(0);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkProgress, setCheckProgress] = useState(0);
 
   useEffect(() => {
     fetchUsers();
@@ -70,9 +76,19 @@ export default function UsersPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setInviteProgress(0);
+    setDeleteExistingProgress(0);
+    setCheckProgress(0);
+    setStatusMessage('');
+    setIsChecking(true);
+    setIsDeletingExisting(false);
 
     try {
-      const response = await fetch('/api/invite', {
+      // Step 1: Check if user exists using our API endpoint
+      setStatusMessage('Checking if user exists...');
+      setCheckProgress(50);
+      
+      const checkResponse = await fetch('/api/check-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,20 +96,103 @@ export default function UsersPage() {
         body: JSON.stringify({ email: newUserEmail }),
       });
 
-      const data = await response.json();
+      const checkData = await checkResponse.json();
+      console.log('Check Response:', checkData); // Debug log
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to send invitation');
+      if (!checkResponse.ok) {
+        throw new Error(checkData.error || 'Failed to check user existence');
       }
+      
+      setCheckProgress(100);
+      
+      if (checkData.exists) {
+        setStatusMessage('User found! Preparing to delete existing user...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Step 2: Delete existing user
+        setIsDeletingExisting(true);
+        setStatusMessage('Deleting existing user...');
+        setDeleteExistingProgress(20);
+        
+        try {
+          const deleteResponse = await fetch('/api/delete-auth-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: checkData.user.id }),
+          });
+
+          const deleteData = await deleteResponse.json();
+          console.log('Delete Response:', deleteData); // Debug log
+
+          if (!deleteResponse.ok) {
+            throw new Error(deleteData.error || 'Failed to delete existing user');
+          }
+
+          setDeleteExistingProgress(100);
+          setStatusMessage('Successfully removed existing user');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (deleteError: any) {
+          console.error('Delete Error:', deleteError); // Debug log
+          throw new Error(`Failed to delete existing user: ${deleteError.message}`);
+        }
+      } else {
+        setStatusMessage('No existing user found, proceeding with invitation...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      // Reset states before moving to invite
+      setIsChecking(false);
+      setIsDeletingExisting(false);
+      setDeleteExistingProgress(0);
+
+      // Step 3: Send invite
+      setStatusMessage('Sending invitation...');
+      setInviteProgress(30);
+
+      const inviteResponse = await fetch('/api/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: newUserEmail }),
+      });
+
+      const inviteData = await inviteResponse.json();
+      console.log('Invite Response:', inviteData); // Debug log
+
+      if (!inviteResponse.ok) {
+        // If we get a "user already exists" error, something went wrong with our deletion
+        // Let's try the deletion one more time
+        if (inviteData.error?.includes('already been registered')) {
+          throw new Error('User still exists in the system. Please try again.');
+        }
+        throw new Error(inviteData.error || 'Failed to send invitation');
+      }
+
+      setInviteProgress(70);
+      setStatusMessage('Processing invitation...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setInviteProgress(100);
+      setStatusMessage('Invitation sent successfully!');
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       setInvitedEmail(newUserEmail);
       setShowAddModal(false);
       setShowSuccessModal(true);
       setNewUserEmail('');
     } catch (error: any) {
+      console.error('Error in handleAddUser:', error);
       setError(error.message);
     } finally {
       setLoading(false);
+      setInviteProgress(0);
+      setDeleteExistingProgress(0);
+      setCheckProgress(0);
+      setIsChecking(false);
+      setIsDeletingExisting(false);
     }
   };
 
@@ -389,6 +488,50 @@ export default function UsersPage() {
                 />
               </div>
 
+              {(isChecking || isDeletingExisting || inviteProgress > 0) && (
+                <div className='space-y-2'>
+                  {isChecking && (
+                    <>
+                      <div className='h-2 bg-gray-200 rounded-full overflow-hidden'>
+                        <div 
+                          className='h-full bg-yellow-600 transition-all duration-500 ease-out'
+                          style={{ width: `${checkProgress}%` }}
+                        />
+                      </div>
+                      <p className='text-sm text-gray-600'>
+                        {statusMessage}
+                      </p>
+                    </>
+                  )}
+                  {isDeletingExisting && (
+                    <>
+                      <div className='h-2 bg-gray-200 rounded-full overflow-hidden'>
+                        <div 
+                          className='h-full bg-red-600 transition-all duration-500 ease-out'
+                          style={{ width: `${deleteExistingProgress}%` }}
+                        />
+                      </div>
+                      <p className='text-sm text-gray-600'>
+                        {statusMessage}
+                      </p>
+                    </>
+                  )}
+                  {!isChecking && !isDeletingExisting && inviteProgress > 0 && (
+                    <>
+                      <div className='h-2 bg-gray-200 rounded-full overflow-hidden'>
+                        <div 
+                          className='h-full bg-blue-600 transition-all duration-500 ease-out'
+                          style={{ width: `${inviteProgress}%` }}
+                        />
+                      </div>
+                      <p className='text-sm text-gray-600'>
+                        {statusMessage}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
               {error && (
                 <div className='bg-red-50 text-red-500 p-4 rounded-lg text-sm flex items-center space-x-2'>
                   <span className='flex-shrink-0'>⚠️</span>
@@ -401,6 +544,7 @@ export default function UsersPage() {
                   variant='secondary'
                   onClick={() => setShowAddModal(false)}
                   className='hover:bg-gray-100 transition-colors duration-200'
+                  disabled={loading}
                 >
                   Cancel
                 </Button>
@@ -409,7 +553,7 @@ export default function UsersPage() {
                   disabled={loading}
                   className='bg-blue-600 hover:bg-blue-700 transition-colors duration-200'
                 >
-                  {loading ? 'Sending Invitation...' : 'Send Invitation'}
+                  {loading ? 'Processing...' : 'Send Invitation'}
                 </Button>
               </div>
             </form>
