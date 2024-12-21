@@ -31,6 +31,7 @@ export interface BlogFormData {
   isFeaturedHome: boolean;
   isFeaturedBlog: boolean;
   gallery_images: string[];
+  video_url?: string | null;
 }
 
 export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData }: BlogFormProps) {
@@ -45,7 +46,8 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     location: initialData?.location || '',
     isFeaturedHome: initialData?.isFeaturedHome || false,
     isFeaturedBlog: initialData?.isFeaturedBlog || false,
-    gallery_images: Array.isArray(initialData?.gallery_images) ? initialData.gallery_images : []
+    gallery_images: Array.isArray(initialData?.gallery_images) ? initialData.gallery_images : [],
+    video_url: initialData?.video_url || null
   });
   const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -62,6 +64,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadingWarning, setShowUploadingWarning] = useState(false);
   const [isFeaturedImageUploading, setIsFeaturedImageUploading] = useState(false);
+  const [isValidVideo, setIsValidVideo] = useState(false);
 
   const isFormComplete = () => {
     const requiredFields = {
@@ -452,6 +455,57 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
       (formData.gallery_images && formData.gallery_images.length > 0);
   };
 
+  function getVideoId(url: string) {
+    try {
+      // YouTube URL patterns
+      const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+      const youtubeMatch = url.match(youtubeRegex);
+      if (youtubeMatch) return { type: 'youtube', id: youtubeMatch[1] };
+
+      // Vimeo URL patterns
+      const vimeoRegex = /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|))(\d+)(?:[a-zA-Z0-9_\-]+)?/;
+      const vimeoMatch = url.match(vimeoRegex);
+      if (vimeoMatch) return { type: 'vimeo', id: vimeoMatch[1] };
+
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function VideoPreview({ url }: { url: string }) {
+    const videoInfo = getVideoId(url);
+    
+    if (!videoInfo) return null;
+
+    let embedUrl = '';
+    if (videoInfo.type === 'youtube') {
+      embedUrl = `https://www.youtube.com/embed/${videoInfo.id}`;
+    } else if (videoInfo.type === 'vimeo') {
+      embedUrl = `https://player.vimeo.com/video/${videoInfo.id}`;
+    }
+
+    return (
+      <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100">
+        <iframe
+          src={embedUrl}
+          className="absolute inset-0 w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  useEffect(() => {
+    if (formData.video_url) {
+      const videoInfo = getVideoId(formData.video_url);
+      setIsValidVideo(!!videoInfo);
+    } else {
+      setIsValidVideo(false);
+    }
+  }, [formData.video_url]);
+
   // Continue with the existing return statement, but add the modals at the end
   return (
     <>
@@ -764,6 +818,41 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                 </div>
               )}
             </div>
+          </FormField>
+
+          <FormField label="Video URL (Optional)">
+            {!isValidVideo || !formData.video_url ? (
+              <div>
+                <Input
+                  type="url"
+                  value={formData.video_url || ''}
+                  onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
+                  placeholder="Enter YouTube or Vimeo URL (optional)"
+                  className={formData.video_url && !isValidVideo ? 'border-red-500' : ''}
+                />
+                {formData.video_url && !isValidVideo && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Please enter a valid YouTube or Vimeo URL
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div className="relative rounded-lg overflow-hidden">
+                  {formData.video_url && <VideoPreview url={formData.video_url} />}
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, video_url: '' })}
+                      className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 hover:text-red-700 shadow-lg transition-all hover:scale-110 border border-red-100 group"
+                      title="Remove video"
+                    >
+                      <RiCloseLine size={24} className="group-hover:rotate-90 transition-transform duration-200" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </FormField>
 
           <FormField label="Content" required>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
-import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiArticleLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine, RiStarLine, RiStarFill, RiHome2Line, RiHome2Fill, RiImageLine, RiArrowLeftLine, RiArrowRightLine } from 'react-icons/ri';
+import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, RiMapPinLine, RiArticleLine, RiZoomInLine, RiCloseLine, RiErrorWarningLine, RiStarLine, RiStarFill, RiHome2Line, RiHome2Fill, RiImageLine, RiArrowLeftLine, RiArrowRightLine, RiVideoLine } from 'react-icons/ri';
 import BlogForm, { BlogFormData } from './BlogForm';
 import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
@@ -28,6 +28,7 @@ type BlogPost = {
   status: BlogStatus;
   missingFields?: string[];
   gallery_images: string[];
+  video_url?: string | null;
 };
 
 const formatContent = (content: string) => {
@@ -66,6 +67,48 @@ const formatContent = (content: string) => {
     .replace(/{{\/i}}/g, '</i>');
 };
 
+function getVideoId(url: string) {
+  try {
+    // YouTube URL patterns
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const youtubeMatch = url.match(youtubeRegex);
+    if (youtubeMatch) return { type: 'youtube', id: youtubeMatch[1] };
+
+    // Vimeo URL patterns
+    const vimeoRegex = /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|))(\d+)(?:[a-zA-Z0-9_\-]+)?/;
+    const vimeoMatch = url.match(vimeoRegex);
+    if (vimeoMatch) return { type: 'vimeo', id: vimeoMatch[1] };
+
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function VideoPreview({ url, autoPlay = false }: { url: string; autoPlay?: boolean }) {
+  const videoInfo = getVideoId(url);
+  
+  if (!videoInfo) return null;
+
+  let embedUrl = '';
+  if (videoInfo.type === 'youtube') {
+    embedUrl = `https://www.youtube.com/embed/${videoInfo.id}${autoPlay ? '?autoplay=1' : ''}`;
+  } else if (videoInfo.type === 'vimeo') {
+    embedUrl = `https://player.vimeo.com/video/${videoInfo.id}${autoPlay ? '?autoplay=1' : ''}`;
+  }
+
+  return (
+    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100">
+      <iframe
+        src={embedUrl}
+        className="absolute inset-0 w-full h-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    </div>
+  );
+}
+
 export default function BlogPage() {
   const [showForm, setShowForm] = useState(false);
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -89,6 +132,7 @@ export default function BlogPage() {
   const [showGalleryPreview, setShowGalleryPreview] = useState(false);
   const [selectedGalleryPost, setSelectedGalleryPost] = useState<BlogPost | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [previewVideo, setPreviewVideo] = useState<string | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -266,6 +310,10 @@ export default function BlogPage() {
 
   const handleSubmit = async (data: BlogFormData, saveAsDraft: boolean = false) => {
     try {
+      // Validate video URL before saving
+      const videoUrl = data.video_url?.trim();
+      const isValidVideo = videoUrl ? !!getVideoId(videoUrl) : false;
+
       const postData = {
         title: data.title,
         slug: data.slug,
@@ -276,6 +324,7 @@ export default function BlogPage() {
         is_featured_home: data.isFeaturedHome,
         is_featured_blog: data.isFeaturedBlog,
         gallery_images: data.gallery_images,
+        video_url: isValidVideo ? videoUrl : null,  // Only save if URL is valid
         status: saveAsDraft ? 'draft' : 'published'
       };
 
@@ -511,6 +560,15 @@ export default function BlogPage() {
                             {post.location}
                           </span>
                         )}
+                        {post.video_url && (
+                          <button
+                            onClick={() => setPreviewVideo(post.video_url || null)}
+                            className="flex items-center text-blue-600 hover:text-blue-700 transition-colors"
+                          >
+                            <RiVideoLine className="mr-1.5" />
+                            Watch Video
+                          </button>
+                        )}
                         {post.gallery_images && post.gallery_images.length > 0 && (
                           <button
                             onClick={() => handleGalleryPreview(post)}
@@ -649,7 +707,8 @@ export default function BlogPage() {
             location: editingPost.location || '',
             isFeaturedHome: editingPost.is_featured_home || false,
             isFeaturedBlog: editingPost.is_featured_blog || false,
-            gallery_images: editingPost.gallery_images || []
+            gallery_images: editingPost.gallery_images || [],
+            video_url: editingPost.video_url || null
           } : undefined}
         />
       )}
@@ -774,6 +833,29 @@ export default function BlogPage() {
               <span className="text-white text-sm">
                 {currentImageIndex + 1} / {selectedGalleryPost.gallery_images.length}
               </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewVideo && (
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-90"
+          onClick={() => setPreviewVideo(null)}
+        >
+          <button
+            onClick={() => setPreviewVideo(null)}
+            className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
+            aria-label="Close preview"
+          >
+            <RiCloseLine className="w-8 h-8" />
+          </button>
+          <div 
+            className="w-full h-full flex items-center justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full max-w-4xl aspect-video">
+              <VideoPreview url={previewVideo} autoPlay={true} />
             </div>
           </div>
         </div>
