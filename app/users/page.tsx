@@ -29,7 +29,7 @@ export default function UsersPage() {
   const [invitedEmail, setInvitedEmail] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | JSX.Element | null>(null);
   const supabase = createClientComponentClient();
   const [inviteProgress, setInviteProgress] = useState(0);
   const [isDeletingExisting, setIsDeletingExisting] = useState(false);
@@ -106,36 +106,84 @@ export default function UsersPage() {
       setCheckProgress(100);
       
       if (checkData.exists) {
-        setStatusMessage('User found! Preparing to delete existing user...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Step 2: Delete existing user
-        setIsDeletingExisting(true);
-        setStatusMessage('Deleting existing user...');
-        setDeleteExistingProgress(20);
-        
-        try {
-          const deleteResponse = await fetch('/api/delete-auth-user', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ userId: checkData.user.id }),
-          });
-
-          const deleteData = await deleteResponse.json();
-          console.log('Delete Response:', deleteData); // Debug log
-
-          if (!deleteResponse.ok) {
-            throw new Error(deleteData.error || 'Failed to delete existing user');
-          }
-
-          setDeleteExistingProgress(100);
-          setStatusMessage('Successfully removed existing user');
+        if (checkData.user.existsIn === 'both') {
+          // If user exists in both tables, show the CMS user details and don't delete
+          const role = checkData.user.cmsDetails?.role;
+          const createdAt = checkData.user.cmsDetails?.created_at 
+            ? new Date(checkData.user.cmsDetails.created_at).toLocaleDateString()
+            : 'unknown date';
+            
+          setStatusMessage('');
+          setError(
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="flex items-center mb-3">
+                <div className="bg-blue-100 rounded-full p-2 mr-3">
+                  <RiAlertLine className="h-5 w-5 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-blue-900">
+                  User Already Exists
+                </h3>
+              </div>
+              <div className="ml-10 space-y-2">
+                <p className="text-blue-800">
+                  <span className="font-medium">Email:</span>{' '}
+                  <span className="text-blue-700">{checkData.user.email}</span>
+                </p>
+                <p className="text-blue-800">
+                  <span className="font-medium">Role:</span>{' '}
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {role}
+                  </span>
+                </p>
+                <p className="text-blue-800">
+                  <span className="font-medium">Joined:</span>{' '}
+                  <span>{createdAt}</span>
+                </p>
+                <p className="mt-3 text-sm text-blue-600">
+                  This user is already registered in the system. No action needed.
+                </p>
+              </div>
+            </div>
+          );
+          setLoading(false);
+          return;
+        } else {
+          // If user exists in only one table, proceed with deletion
+          setStatusMessage(
+            `User found in ${checkData.user.existsIn === 'auth' 
+              ? 'auth table only' 
+              : 'CMS table only'}! Preparing to delete existing user...`
+          );
           await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (deleteError: any) {
-          console.error('Delete Error:', deleteError); // Debug log
-          throw new Error(`Failed to delete existing user: ${deleteError.message}`);
+          
+          // Step 2: Delete existing user
+          setIsDeletingExisting(true);
+          setStatusMessage('Deleting existing user...');
+          setDeleteExistingProgress(20);
+          
+          try {
+            const deleteResponse = await fetch('/api/delete-auth-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ userId: checkData.user.id }),
+            });
+
+            const deleteData = await deleteResponse.json();
+            console.log('Delete Response:', deleteData); // Debug log
+
+            if (!deleteResponse.ok) {
+              throw new Error(deleteData.error || 'Failed to delete existing user');
+            }
+
+            setDeleteExistingProgress(100);
+            setStatusMessage('Successfully removed existing user');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } catch (deleteError: any) {
+            console.error('Delete Error:', deleteError); // Debug log
+            throw new Error(`Failed to delete existing user: ${deleteError.message}`);
+          }
         }
       } else {
         setStatusMessage('No existing user found, proceeding with invitation...');
@@ -268,13 +316,26 @@ export default function UsersPage() {
     return matchesSearch && matchesRole && isNotCurrentUser;
   });
 
+  const handleOpenAddModal = () => {
+    setShowAddModal(true);
+    setError(null);
+    setNewUserEmail('');
+    setLoading(false);
+    setInviteProgress(0);
+    setDeleteExistingProgress(0);
+    setCheckProgress(0);
+    setStatusMessage('');
+    setIsChecking(false);
+    setIsDeletingExisting(false);
+  };
+
   return (
     <div className='p-8'>
       <PageHeader
         title="Users"
         description="Manage system users and their roles"
         action={
-          <Button icon={RiAddLine} onClick={() => setShowAddModal(true)}>
+          <Button icon={RiAddLine} onClick={handleOpenAddModal}>
             Invite User
           </Button>
         }
@@ -490,71 +551,69 @@ export default function UsersPage() {
 
               {(isChecking || isDeletingExisting || inviteProgress > 0) && (
                 <div className='space-y-2'>
-                  {isChecking && (
-                    <>
-                      <div className='h-2 bg-gray-200 rounded-full overflow-hidden'>
-                        <div 
-                          className='h-full bg-yellow-600 transition-all duration-500 ease-out'
-                          style={{ width: `${checkProgress}%` }}
-                        />
-                      </div>
-                      <p className='text-sm text-gray-600'>
-                        {statusMessage}
-                      </p>
-                    </>
-                  )}
-                  {isDeletingExisting && (
-                    <>
-                      <div className='h-2 bg-gray-200 rounded-full overflow-hidden'>
-                        <div 
-                          className='h-full bg-red-600 transition-all duration-500 ease-out'
-                          style={{ width: `${deleteExistingProgress}%` }}
-                        />
-                      </div>
-                      <p className='text-sm text-gray-600'>
-                        {statusMessage}
-                      </p>
-                    </>
-                  )}
-                  {!isChecking && !isDeletingExisting && inviteProgress > 0 && (
-                    <>
-                      <div className='h-2 bg-gray-200 rounded-full overflow-hidden'>
-                        <div 
-                          className='h-full bg-blue-600 transition-all duration-500 ease-out'
-                          style={{ width: `${inviteProgress}%` }}
-                        />
-                      </div>
-                      <p className='text-sm text-gray-600'>
-                        {statusMessage}
-                      </p>
-                    </>
-                  )}
+                  <div className='h-2 bg-gray-200 rounded-full overflow-hidden'>
+                    <div 
+                      className={`h-full transition-all duration-500 ease-out ${
+                        isDeletingExisting ? 'bg-red-600' : 
+                        inviteProgress > 0 ? 'bg-blue-600' : 
+                        'bg-yellow-600'
+                      }`}
+                      style={{ 
+                        width: `${
+                          isDeletingExisting ? deleteExistingProgress :
+                          inviteProgress > 0 ? inviteProgress :
+                          checkProgress
+                        }%` 
+                      }}
+                    />
+                  </div>
+                  <p className='text-sm text-gray-600'>
+                    {statusMessage}
+                  </p>
                 </div>
               )}
 
               {error && (
-                <div className='bg-red-50 text-red-500 p-4 rounded-lg text-sm flex items-center space-x-2'>
-                  <span className='flex-shrink-0'>⚠️</span>
-                  <span>{error}</span>
+                <div className={typeof error === 'string' ? 'bg-red-50 text-red-500 p-4 rounded-lg text-sm flex items-center space-x-2' : ''}>
+                  {typeof error === 'string' ? (
+                    <>
+                      <span className='flex-shrink-0'>⚠️</span>
+                      <span>{error}</span>
+                    </>
+                  ) : error}
                 </div>
               )}
 
               <div className='flex justify-end space-x-2 pt-4'>
-                <Button
-                  variant='secondary'
-                  onClick={() => setShowAddModal(false)}
-                  className='hover:bg-gray-100 transition-colors duration-200'
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type='submit'
-                  disabled={loading}
-                  className='bg-blue-600 hover:bg-blue-700 transition-colors duration-200'
-                >
-                  {loading ? 'Processing...' : 'Send Invitation'}
-                </Button>
+                {!loading && !error && (
+                  <Button
+                    variant='secondary'
+                    onClick={() => setShowAddModal(false)}
+                    className='hover:bg-gray-100 transition-colors duration-200'
+                  >
+                    Cancel
+                  </Button>
+                )}
+                {error ? (
+                  <Button
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setError(null);
+                      setNewUserEmail('');
+                    }}
+                    className='bg-blue-600 hover:bg-blue-700 transition-colors duration-200'
+                  >
+                    Close
+                  </Button>
+                ) : (
+                  <Button
+                    type='submit'
+                    disabled={loading}
+                    className='bg-blue-600 hover:bg-blue-700 transition-colors duration-200'
+                  >
+                    {loading ? 'Processing...' : 'Send Invitation'}
+                  </Button>
+                )}
               </div>
             </form>
           </div>

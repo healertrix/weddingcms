@@ -54,7 +54,12 @@ export async function POST(request: Request) {
         id: existingAuthUser?.id || existingCmsUser?.id,
         email: existingAuthUser?.email || existingCmsUser?.email,
         isAuthUser: !!existingAuthUser,
-        isCmsUser: !!existingCmsUser
+        isCmsUser: !!existingCmsUser,
+        existsIn: existingAuthUser && existingCmsUser ? 'both' : existingAuthUser ? 'auth' : 'cms',
+        cmsDetails: existingAuthUser && existingCmsUser ? {
+          role: existingCmsUser.role,
+          created_at: existingCmsUser.created_at
+        } : null
       } : null
     });
 
