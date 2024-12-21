@@ -6,12 +6,6 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   transpilePackages: ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/pm'],
-  api: {
-    bodyParser: {
-      sizeLimit: '20mb' // Increased for larger image uploads
-    },
-    responseLimit: '1mb'  // Keep small as we only return JSON
-  },
   images: {
     remotePatterns: [
       {
@@ -32,6 +26,12 @@ const nextConfig: NextConfig = {
     // Disable TypeScript during production builds
     ignoreBuildErrors: true,
   },
+  experimental: {
+    serverComponentsExternalPackages: [],
+    serverActions: {
+      bodySizeLimit: '20mb'
+    }
+  }
 };
 
 export default nextConfig;
