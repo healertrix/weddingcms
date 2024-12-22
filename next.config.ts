@@ -18,6 +18,16 @@ const nextConfig: NextConfig = {
         hostname: 'images.unsplash.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'fonts.gstatic.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'fonts.googleapis.com',
+        pathname: '/**',
+      },
     ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
@@ -25,6 +35,9 @@ const nextConfig: NextConfig = {
   typescript: {
     // Disable TypeScript during production builds
     ignoreBuildErrors: true,
+  },
+  experimental: {
+    webVitalsAttribution: ['CLS', 'LCP'],
   },
 };
 
