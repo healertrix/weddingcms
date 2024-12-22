@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  swcMinify: false,
   eslint: {
     // Disable ESLint during production builds
     ignoreDuringBuilds: true,
