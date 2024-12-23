@@ -57,7 +57,19 @@ export default function SetupPasswordPage() {
       // Check if we already have a valid session
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        return; // We already have a valid session
+        // Check if user already has a cms_users record
+        const { data: userData, error: userError } = await supabase
+          .from('cms_users')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (userData) {
+          // User already has a cms_users record, redirect to home
+          router.push('/');
+          return;
+        }
+        return; // No cms_users record, continue with setup
       }
 
       // If we get here, no valid token was found

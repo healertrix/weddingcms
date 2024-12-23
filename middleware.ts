@@ -58,7 +58,7 @@ export async function middleware(req: NextRequest) {
   const { data: userData } = await supabase
     .from('cms_users')
     .select('role')
-    .eq('email', session.user.email)
+    .eq('id', session.user.id)
     .single();
 
   // If user is authenticated but not in cms_users (hasn't completed setup)
