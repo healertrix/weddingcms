@@ -48,10 +48,6 @@ export default function TestimonialsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetchTestimonials();
-  }, []);
-
-  useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && previewImage) {
         setPreviewImage(null);
@@ -66,6 +62,21 @@ export default function TestimonialsPage() {
       document.removeEventListener('keydown', handleEscapeKey);
     };
   }, [previewImage]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && previewVideo) {
+        setPreviewVideo(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewVideo]);
+
+  useEffect(() => {
+    fetchTestimonials();
+  }, []);
 
   const fetchTestimonials = async () => {
     try {

@@ -145,6 +145,17 @@ export default function BlogPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewImage]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && previewVideo) {
+        setPreviewVideo(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewVideo]);
+
   const fetchPosts = useCallback(async (page = 1) => {
     setIsLoading(true);
     try {

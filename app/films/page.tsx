@@ -50,6 +50,17 @@ export default function FilmsPage() {
   const router = useRouter();
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && previewVideo) {
+        setPreviewVideo(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewVideo]);
+
+  useEffect(() => {
     fetchFilms();
   }, []);
 
