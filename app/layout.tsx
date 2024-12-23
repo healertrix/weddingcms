@@ -20,8 +20,9 @@ const gotu = Gotu({
   subsets: ['latin'],
   weight: '400',
   display: 'swap',
-  preload: true,
+  preload: false,
   variable: '--font-gotu',
+  adjustFontFallback: true,
 });
 
 export const metadata: Metadata = {
