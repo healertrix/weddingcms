@@ -27,7 +27,7 @@ const gotu = Gotu({
 
 export const metadata: Metadata = {
   title: 'Wedding Theory CMS',
-  description: 'Wedding Planning Platform',
+  description: 'CMS Platform for Wedding Theory',
 };
 
 export default function RootLayout({
