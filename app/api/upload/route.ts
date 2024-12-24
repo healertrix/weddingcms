@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import AWS from 'aws-sdk';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://weddingcms.vercel.app',
+  'Access-Control-Allow-Origin': 'https://weddingtheorycms.in/',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-  'Access-Control-Allow-Credentials': 'true'
+  'Access-Control-Allow-Headers':
+    'Content-Type, Authorization, X-Requested-With',
+  'Access-Control-Allow-Credentials': 'true',
 };
 
 const s3 = new AWS.S3({
