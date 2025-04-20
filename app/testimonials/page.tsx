@@ -106,7 +106,8 @@ export default function TestimonialsPage() {
     if (!testimonial.location?.trim()) missingFields.push('Location');
     if (!testimonial.review?.trim()) missingFields.push('Review');
     if (!testimonial.image_key) missingFields.push('Photo');
-    if (!testimonial.video_url || !isValidVideoUrl(testimonial.video_url)) missingFields.push('Video');
+    if (testimonial.video_url && !isValidVideoUrl(testimonial.video_url))
+      missingFields.push('Valid Video URL');
 
     testimonial.missingFields = missingFields;
     return missingFields.length === 0;

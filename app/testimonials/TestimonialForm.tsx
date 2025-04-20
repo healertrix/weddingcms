@@ -23,18 +23,20 @@ export type TestimonialFormData = {
   review: string;
   imageKey?: string;
   imageUrl?: string;
-  videoUrl: string;
+  videoUrl?: string;
 };
 
 function getVideoId(url: string) {
   try {
     // YouTube URL patterns
-    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const youtubeRegex =
+      /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const youtubeMatch = url.match(youtubeRegex);
     if (youtubeMatch) return { type: 'youtube', id: youtubeMatch[1] };
 
     // Vimeo URL patterns
-    const vimeoRegex = /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|))(\d+)(?:[a-zA-Z0-9_\-]+)?/;
+    const vimeoRegex =
+      /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|))(\d+)(?:[a-zA-Z0-9_\-]+)?/;
     const vimeoMatch = url.match(vimeoRegex);
     if (vimeoMatch) return { type: 'vimeo', id: vimeoMatch[1] };
 
@@ -46,7 +48,7 @@ function getVideoId(url: string) {
 
 function VideoPreview({ url }: { url: string }) {
   const videoInfo = getVideoId(url);
-  
+
   if (!videoInfo) return null;
 
   let embedUrl = '';
@@ -57,27 +59,34 @@ function VideoPreview({ url }: { url: string }) {
   }
 
   return (
-    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100">
+    <div className='relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100'>
       <iframe
         src={embedUrl}
-        className="absolute inset-0 w-full h-full"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        className='absolute inset-0 w-full h-full'
+        allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
         allowFullScreen
       />
     </div>
   );
 }
 
-export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, initialData }: TestimonialFormProps) {
-  const [formData, setFormData] = useState<TestimonialFormData>(initialData || {
-    coupleNames: '',
-    weddingDate: null,
-    location: '',
-    review: '',
-    imageKey: '',
-    imageUrl: '',
-    videoUrl: ''
-  });
+export default function TestimonialForm({
+  onClose,
+  onSubmit,
+  onSaveAsDraft,
+  initialData,
+}: TestimonialFormProps) {
+  const [formData, setFormData] = useState<TestimonialFormData>(
+    initialData || {
+      coupleNames: '',
+      weddingDate: null,
+      location: '',
+      review: '',
+      imageKey: '',
+      imageUrl: '',
+      videoUrl: '',
+    }
+  );
   const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showCoupleNamesWarning, setShowCoupleNamesWarning] = useState(false);
@@ -85,17 +94,17 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
   const [deleteProgress, setDeleteProgress] = useState(0);
   const [isValidVideo, setIsValidVideo] = useState(false);
   const [initialFormData] = useState<TestimonialFormData>(
-    initialData ? 
-    JSON.parse(JSON.stringify(initialData)) : 
-    {
-      coupleNames: '',
-      weddingDate: null,
-      location: '',
-      review: '',
-      imageKey: '',
-      imageUrl: '',
-      videoUrl: ''
-    }
+    initialData
+      ? JSON.parse(JSON.stringify(initialData))
+      : {
+          coupleNames: '',
+          weddingDate: null,
+          location: '',
+          review: '',
+          imageKey: '',
+          imageUrl: '',
+          videoUrl: '',
+        }
   );
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const coupleNamesInputRef = useRef<HTMLInputElement>(null);
@@ -134,8 +143,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       formData.weddingDate?.trim() !== '' &&
       formData.location?.trim() !== '' &&
       formData.review?.trim() !== '' &&
-      formData.videoUrl?.trim() !== '' &&
-      isValidVideo
+      (!formData.videoUrl || (formData.videoUrl?.trim() !== '' && isValidVideo))
     );
   };
 
@@ -165,7 +173,10 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       review: formData.review.trim(),
       imageKey: formData.imageKey || '',
       imageUrl: formData.imageUrl || '',
-      videoUrl: (formData.videoUrl?.trim() && isValidVideo) ? formData.videoUrl.trim() : ''
+      videoUrl:
+        formData.videoUrl?.trim() && isValidVideo
+          ? formData.videoUrl.trim()
+          : '',
     };
 
     if (saveAsDraft) {
@@ -180,7 +191,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       setFormData({
         ...formData,
         imageKey: files[0].key,
-        imageUrl: files[0].url
+        imageUrl: files[0].url,
       });
       // Reset upload state after successful upload
       setIsUploading(false);
@@ -195,11 +206,11 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     if (formData.imageKey && !isDeleting) {
       setIsDeleting(true);
       setDeleteProgress(0);
-      
+
       try {
         // Start progress animation
         const progressInterval = setInterval(() => {
-          setDeleteProgress(prev => {
+          setDeleteProgress((prev) => {
             if (prev >= 90) {
               clearInterval(progressInterval);
               return 90;
@@ -226,7 +237,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
           setFormData({
             ...formData,
             imageKey: '',
-            imageUrl: ''
+            imageUrl: '',
           });
           setShowDeleteImageConfirm(false);
           setIsDeleting(false);
@@ -252,11 +263,11 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     // For new testimonials, check if any required field has content
     return Boolean(
       formData.coupleNames?.trim() ||
-      formData.weddingDate ||
-      formData.location?.trim() ||
-      formData.review?.trim() ||
-      (formData.videoUrl?.trim() && isValidVideo) ||
-      formData.imageUrl
+        formData.weddingDate ||
+        formData.location?.trim() ||
+        formData.review?.trim() ||
+        (formData.videoUrl?.trim() && isValidVideo) ||
+        formData.imageUrl
     );
   };
 
@@ -266,7 +277,8 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     if (!formData.weddingDate?.trim()) missingFields.push('Wedding Date');
     if (!formData.location?.trim()) missingFields.push('Location');
     if (!formData.review?.trim()) missingFields.push('Review');
-    if (!formData.videoUrl?.trim() || !isValidVideo) missingFields.push('Valid Video URL');
+    if (formData.videoUrl && !isValidVideo)
+      missingFields.push('Valid Video URL');
     return missingFields;
   };
 
@@ -280,7 +292,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
     const submissionData: TestimonialFormData = {
       ...formData,
       weddingDate: formData.weddingDate?.trim() || null,
-      videoUrl: formData.videoUrl?.trim() || ''
+      videoUrl: formData.videoUrl?.trim() || '',
     };
 
     onSaveAsDraft(submissionData);
@@ -325,37 +337,47 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
             const submissionData: TestimonialFormData = {
               ...formData,
               weddingDate: formData.weddingDate?.trim() || null,
-              videoUrl: formData.videoUrl?.trim() || ''
+              videoUrl: formData.videoUrl?.trim() || '',
             };
             onSaveAsDraft(submissionData);
           } else {
             onClose();
           }
         }}
-        closeButtonLabel={isUploading ? "Upload in progress..." : (hasUnsavedChanges() ? "Save as Draft" : "Cancel")}
+        closeButtonLabel={
+          isUploading
+            ? 'Upload in progress...'
+            : hasUnsavedChanges()
+            ? 'Save as Draft'
+            : 'Cancel'
+        }
         icon={hasUnsavedChanges() ? RiSaveLine : RiCloseLine}
       >
-        <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
-          <div className="grid grid-cols-2 gap-6">
-            <FormField label="Couple Names" required>
+        <form onSubmit={(e) => handleSubmit(e, false)} className='space-y-6'>
+          <div className='grid grid-cols-2 gap-6'>
+            <FormField label='Couple Names' required>
               <div>
                 <Input
                   ref={coupleNamesInputRef}
                   required
                   value={formData.coupleNames}
-                  onChange={(e) => setFormData({ ...formData, coupleNames: e.target.value })}
-                  placeholder="e.g., Sarah & John"
+                  onChange={(e) =>
+                    setFormData({ ...formData, coupleNames: e.target.value })
+                  }
+                  placeholder='e.g., Sarah & John'
                 />
-                <p className="text-sm text-gray-500 mt-1">Required even for drafts</p>
+                <p className='text-sm text-gray-500 mt-1'>
+                  Required even for drafts
+                </p>
               </div>
             </FormField>
 
-            <FormField label="Wedding Date">
+            <FormField label='Wedding Date'>
               <Input
-                type="date"
+                type='date'
                 value={formData.weddingDate || ''}
-                min="2000-01-01"
-                max="2100-12-31"
+                min='2000-01-01'
+                max='2100-12-31'
                 onChange={(e) => {
                   setFormData({ ...formData, weddingDate: e.target.value });
                 }}
@@ -363,47 +385,51 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
             </FormField>
           </div>
 
-          <FormField label="Location" required>
+          <FormField label='Location' required>
             <Input
               required
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              placeholder="e.g., Mumbai, India"
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
+              placeholder='e.g., Mumbai, India'
             />
           </FormField>
 
-          <FormField label="Review" required>
+          <FormField label='Review' required>
             <textarea
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 border-gray-300 focus:ring-[#8B4513]"
+              className='w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 border-gray-300 focus:ring-[#8B4513]'
               rows={8}
               required
               value={formData.review}
-              onChange={(e) => setFormData({ ...formData, review: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, review: e.target.value })
+              }
               placeholder="Write the client's review here..."
             />
           </FormField>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className='grid grid-cols-2 gap-6'>
             <div>
-              <FormField label="Photo">
+              <FormField label='Photo'>
                 {formData.imageUrl ? (
-                  <div className="relative aspect-video rounded-lg overflow-hidden group">
+                  <div className='relative aspect-video rounded-lg overflow-hidden group'>
                     <img
                       src={formData.imageUrl}
-                      alt="Testimonial photo"
-                      className="w-full h-full object-cover"
+                      alt='Testimonial photo'
+                      className='w-full h-full object-cover'
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
+                    <div className='absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center'>
+                      <div className='flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all'>
                         <button
                           onClick={(e) => {
                             e.preventDefault();
                             setPreviewImage(formData.imageUrl || null);
                           }}
-                          className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
-                          aria-label="View full size"
-                          title="View full size"
-                          type="button"
+                          className='p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all'
+                          aria-label='View full size'
+                          title='View full size'
+                          type='button'
                         >
                           <RiZoomInLine size={20} />
                         </button>
@@ -413,11 +439,11 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
                               e.preventDefault();
                               handleDeleteClick();
                             }}
-                            className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
+                            className='p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all'
                             disabled={isDeleting || isUploading}
-                            aria-label="Delete image"
-                            title="Delete image"
-                            type="button"
+                            aria-label='Delete image'
+                            title='Delete image'
+                            type='button'
                           >
                             <RiCloseLine size={20} />
                           </button>
@@ -431,7 +457,7 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
                     value={formData.imageUrl || ''}
                     onDelete={handleDeleteClick}
                     disabled={isDeleting || isUploading}
-                    folder="testimonial"
+                    folder='testimonial'
                     multiple={false}
                     onUploadStatusChange={(status) => {
                       setIsUploading(status === 'uploading');
@@ -442,35 +468,46 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
             </div>
 
             <div>
-              <FormField label="Video URL" required>
+              <FormField label='Video URL' required={false}>
                 {!isValidVideo ? (
                   <div>
                     <Input
-                      type="url"
-                      required
+                      type='url'
+                      required={false}
                       value={formData.videoUrl}
-                      onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-                      placeholder="Enter YouTube or Vimeo URL"
-                      className={formData.videoUrl && !isValidVideo ? 'border-red-500' : ''}
+                      onChange={(e) =>
+                        setFormData({ ...formData, videoUrl: e.target.value })
+                      }
+                      placeholder='Enter YouTube or Vimeo URL (optional)'
+                      className={
+                        formData.videoUrl && !isValidVideo
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {formData.videoUrl && !isValidVideo && (
-                      <p className="text-sm text-red-500 mt-1">
+                      <p className='text-sm text-red-500 mt-1'>
                         Please enter a valid YouTube or Vimeo URL
                       </p>
                     )}
                   </div>
                 ) : (
                   <div>
-                    <div className="relative rounded-lg overflow-hidden">
+                    <div className='relative rounded-lg overflow-hidden'>
                       <VideoPreview url={formData.videoUrl || ''} />
-                      <div className="absolute top-3 right-3 flex gap-2">
+                      <div className='absolute top-3 right-3 flex gap-2'>
                         <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, videoUrl: '' })}
-                          className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 hover:text-red-700 shadow-lg transition-all hover:scale-110 border border-red-100 group"
-                          title="Change video"
+                          type='button'
+                          onClick={() =>
+                            setFormData({ ...formData, videoUrl: '' })
+                          }
+                          className='p-2 bg-white rounded-full text-red-600 hover:bg-red-50 hover:text-red-700 shadow-lg transition-all hover:scale-110 border border-red-100 group'
+                          title='Change video'
                         >
-                          <RiCloseLine size={24} className="group-hover:rotate-90 transition-transform duration-200" />
+                          <RiCloseLine
+                            size={24}
+                            className='group-hover:rotate-90 transition-transform duration-200'
+                          />
                         </button>
                       </div>
                     </div>
@@ -480,11 +517,11 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
             </div>
           </div>
 
-          <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
+          <div className='flex justify-end space-x-4 pt-6 border-t mt-8'>
             {(initialData || hasUnsavedChanges()) && (
               <>
-                <Button 
-                  variant="secondary" 
+                <Button
+                  variant='secondary'
                   onClick={(e) => {
                     e.preventDefault();
                     if (isUploading) {
@@ -497,12 +534,16 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
                     isUploading ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                   disabled={isUploading}
-                  title={isUploading ? 'Please wait for upload to complete' : undefined}
+                  title={
+                    isUploading
+                      ? 'Please wait for upload to complete'
+                      : undefined
+                  }
                 >
                   Save as Draft
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type='submit'
                   icon={RiSaveLine}
                   disabled={!isFormComplete() || isUploading}
                   onClick={(e) => {
@@ -527,16 +568,20 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
                       ? 'Please wait for upload to complete'
                       : !isFormComplete()
                       ? 'Cannot publish: Missing required fields'
-                      : initialData ? 'Update testimonial' : 'Publish testimonial'
+                      : initialData
+                      ? 'Update testimonial'
+                      : 'Publish testimonial'
                   }
                 >
                   {!isFormComplete() ? (
-                    <span className="flex items-center gap-1">
-                      <RiErrorWarningLine className="w-4 h-4" />
+                    <span className='flex items-center gap-1'>
+                      <RiErrorWarningLine className='w-4 h-4' />
                       Incomplete
                     </span>
+                  ) : initialData ? (
+                    'Update Testimonial'
                   ) : (
-                    initialData ? 'Update Testimonial' : 'Publish Testimonial'
+                    'Publish Testimonial'
                   )}
                 </Button>
               </>
@@ -546,26 +591,26 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
       </FormModal>
 
       {previewImage && (
-        <div 
-          className="fixed inset-0 z-50 bg-black bg-opacity-90"
+        <div
+          className='fixed inset-0 z-50 bg-black bg-opacity-90'
           onClick={() => setPreviewImage(null)}
         >
           <button
             onClick={() => setPreviewImage(null)}
-            className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
-            aria-label="Close preview"
-            type="button"
+            className='absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors'
+            aria-label='Close preview'
+            type='button'
           >
-            <RiCloseLine className="w-8 h-8" />
+            <RiCloseLine className='w-8 h-8' />
           </button>
-          <div 
-            className="w-full h-full flex items-center justify-center p-4"
+          <div
+            className='w-full h-full flex items-center justify-center p-4'
             onClick={(e) => e.stopPropagation()}
           >
             <img
               src={previewImage}
-              alt="Full size preview"
-              className="max-w-[90vw] max-h-[85vh] object-contain"
+              alt='Full size preview'
+              className='max-w-[90vw] max-h-[85vh] object-contain'
             />
           </div>
         </div>
@@ -573,36 +618,40 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
 
       {showDeleteImageConfirm && (
         <ConfirmModal
-          title="⚠️ Delete Image Permanently"
+          title='⚠️ Delete Image Permanently'
           message={
-            <div className="space-y-4">
-              <div className="space-y-4">
+            <div className='space-y-4'>
+              <div className='space-y-4'>
                 <p>Are you sure you want to delete this image?</p>
-                <div className="bg-red-50 p-4 rounded-lg space-y-2">
-                  <div className="font-medium text-red-800">This will permanently delete:</div>
-                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                <div className='bg-red-50 p-4 rounded-lg space-y-2'>
+                  <div className='font-medium text-red-800'>
+                    This will permanently delete:
+                  </div>
+                  <ul className='list-disc list-inside text-red-700 space-y-1 ml-2'>
                     <li>The testimonial photo</li>
                     <li>The image from storage</li>
                   </ul>
-                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                  <div className='text-red-800 font-medium mt-2'>
+                    This action cannot be undone.
+                  </div>
                 </div>
               </div>
               {isDeleting && (
-                <div className="mt-4">
-                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                <div className='mt-4'>
+                  <div className='h-2 w-full bg-gray-100 rounded-full overflow-hidden'>
+                    <div
+                      className='h-full bg-red-600 transition-all duration-300 ease-out'
                       style={{ width: `${deleteProgress}%` }}
                     />
                   </div>
-                  <div className="text-sm text-gray-500 mt-2 text-center">
+                  <div className='text-sm text-gray-500 mt-2 text-center'>
                     Deleting image... {deleteProgress}%
                   </div>
                 </div>
               )}
             </div>
           }
-          confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
+          confirmLabel={isDeleting ? 'Deleting...' : 'Delete Permanently'}
           onConfirm={handleImageDelete}
           onCancel={() => {
             if (!isDeleting) {
@@ -620,19 +669,21 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
 
       {showCoupleNamesWarning && (
         <ConfirmModal
-          title="Couple Names Required"
+          title='Couple Names Required'
           message={
-            <div className="space-y-4">
-              <p className="text-gray-600">Couple names are required even when saving as a draft.</p>
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 text-yellow-800">
-                  <RiErrorWarningLine className="flex-shrink-0" />
+            <div className='space-y-4'>
+              <p className='text-gray-600'>
+                Couple names are required even when saving as a draft.
+              </p>
+              <div className='bg-yellow-50 p-4 rounded-lg'>
+                <div className='flex items-center gap-2 text-yellow-800'>
+                  <RiErrorWarningLine className='flex-shrink-0' />
                   <p>Please enter the couple names before saving.</p>
                 </div>
               </div>
             </div>
           }
-          confirmLabel="OK"
+          confirmLabel='OK'
           onConfirm={() => {
             setShowCoupleNamesWarning(false);
             focusCoupleNames();
@@ -641,57 +692,65 @@ export default function TestimonialForm({ onClose, onSubmit, onSaveAsDraft, init
             setShowCoupleNamesWarning(false);
             focusCoupleNames();
           }}
-          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          confirmButtonClassName='bg-[#8B4513] hover:bg-[#693610] text-white'
           showCancelButton={false}
         />
       )}
 
       {showIncompleteWarning && (
         <ConfirmModal
-          title="Cannot Publish Incomplete Testimonial"
+          title='Cannot Publish Incomplete Testimonial'
           message={
-            <div className="space-y-4">
-              <p className="text-gray-600">The following required fields are missing:</p>
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 text-yellow-800">
-                  <RiErrorWarningLine className="flex-shrink-0" />
-                  <ul className="list-disc list-inside">
+            <div className='space-y-4'>
+              <p className='text-gray-600'>
+                The following required fields are missing:
+              </p>
+              <div className='bg-yellow-50 p-4 rounded-lg'>
+                <div className='flex items-center gap-2 text-yellow-800'>
+                  <RiErrorWarningLine className='flex-shrink-0' />
+                  <ul className='list-disc list-inside'>
                     {getMissingFields().map((field, index) => (
                       <li key={index}>{field}</li>
                     ))}
                   </ul>
                 </div>
               </div>
-              <p className="text-gray-600">
-                You can either complete these fields to publish, or save as a draft to finish later.
+              <p className='text-gray-600'>
+                You can either complete these fields to publish, or save as a
+                draft to finish later.
               </p>
             </div>
           }
-          confirmLabel="OK"
+          confirmLabel='OK'
           onConfirm={() => setShowIncompleteWarning(false)}
           onCancel={() => setShowIncompleteWarning(false)}
-          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          confirmButtonClassName='bg-[#8B4513] hover:bg-[#693610] text-white'
         />
       )}
 
       {showUploadingWarning && (
         <ConfirmModal
-          title="Upload in Progress"
+          title='Upload in Progress'
           message={
-            <div className="space-y-4">
-              <p className="text-gray-600">Please wait for the image upload to complete before proceeding.</p>
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 text-yellow-800">
-                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
-                  <p>Images are still being uploaded. Please wait for the upload to finish.</p>
+            <div className='space-y-4'>
+              <p className='text-gray-600'>
+                Please wait for the image upload to complete before proceeding.
+              </p>
+              <div className='bg-yellow-50 p-4 rounded-lg'>
+                <div className='flex items-center gap-2 text-yellow-800'>
+                  <RiErrorWarningLine className='flex-shrink-0 w-5 h-5' />
+                  <p>
+                    Images are still being uploaded. Please wait for the upload
+                    to finish.
+                  </p>
                 </div>
               </div>
             </div>
           }
-          confirmLabel="OK"
+          confirmLabel='OK'
           onConfirm={() => setShowUploadingWarning(false)}
           onCancel={() => setShowUploadingWarning(false)}
-          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          confirmButtonClassName='bg-[#8B4513] hover:bg-[#693610] text-white'
           showCancelButton={false}
         />
       )}
