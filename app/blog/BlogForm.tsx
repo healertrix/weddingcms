@@ -5,12 +5,23 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import FormField from '../components/forms/FormField';
 import Input from '../components/forms/Input';
 import Button from '../components/Button';
-import { RiSaveLine, RiCloseLine, RiErrorWarningLine, RiZoomInLine, RiArrowLeftSLine, RiArrowRightSLine, RiDragMove2Line } from 'react-icons/ri';
+import {
+  RiSaveLine,
+  RiCloseLine,
+  RiErrorWarningLine,
+  RiZoomInLine,
+  RiArrowLeftSLine,
+  RiArrowRightSLine,
+  RiDragMove2Line,
+  RiEdit2Line,
+  RiCheckLine,
+} from 'react-icons/ri';
 import ImageDropzone from '../components/forms/ImageDropzone';
 import FormModal from '../components/forms/FormModal';
 import TextEditor from '../components/forms/TextEditor';
 import { Switch } from '../components/forms/Switch';
 import ConfirmModal from '../components/ConfirmModal';
+import AltTextModal from '../components/forms/AltTextModal';
 import Image from 'next/image';
 
 type BlogFormProps = {
@@ -26,15 +37,23 @@ export interface BlogFormData {
   content: string;
   featuredImageKey?: string;
   featuredImageUrl?: string;
+  featuredImageAlt?: string;
   weddingDate: string;
   location: string;
   isFeaturedHome: boolean;
   isFeaturedBlog: boolean;
   gallery_images: string[];
+  galleryImageAlts?: { [key: string]: string };
   video_url?: string | null;
+  meta_description?: string;
 }
 
-export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData }: BlogFormProps) {
+export default function BlogForm({
+  onClose,
+  onSubmit,
+  onSaveAsDraft,
+  initialData,
+}: BlogFormProps) {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<BlogFormData>({
     title: initialData?.title || '',
@@ -42,12 +61,17 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     content: initialData?.content || '',
     featuredImageKey: initialData?.featuredImageKey || '',
     featuredImageUrl: initialData?.featuredImageUrl || '',
+    featuredImageAlt: initialData?.featuredImageAlt || '',
     weddingDate: initialData?.weddingDate || '',
     location: initialData?.location || '',
     isFeaturedHome: initialData?.isFeaturedHome || false,
     isFeaturedBlog: initialData?.isFeaturedBlog || false,
-    gallery_images: Array.isArray(initialData?.gallery_images) ? initialData.gallery_images : [],
-    video_url: initialData?.video_url || null
+    gallery_images: Array.isArray(initialData?.gallery_images)
+      ? initialData.gallery_images
+      : [],
+    galleryImageAlts: initialData?.galleryImageAlts || {},
+    video_url: initialData?.video_url || null,
+    meta_description: initialData?.meta_description || '',
   });
   const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -60,11 +84,19 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewImageIndex, setPreviewImageIndex] = useState<number>(-1);
   const [deleteImageIndex, setDeleteImageIndex] = useState<number | null>(null);
-  const [showUnsavedChangesWarning, setShowUnsavedChangesWarning] = useState(false);
+  const [showUnsavedChangesWarning, setShowUnsavedChangesWarning] =
+    useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadingWarning, setShowUploadingWarning] = useState(false);
-  const [isFeaturedImageUploading, setIsFeaturedImageUploading] = useState(false);
+  const [isFeaturedImageUploading, setIsFeaturedImageUploading] =
+    useState(false);
   const [isValidVideo, setIsValidVideo] = useState(false);
+  const [altTextModal, setAltTextModal] = useState<{
+    isOpen: boolean;
+    imageUrl: string;
+    imageType: 'featured' | 'gallery';
+    galleryIndex?: number;
+  }>({ isOpen: false, imageUrl: '', imageType: 'featured' });
 
   const isFormComplete = () => {
     const requiredFields = {
@@ -73,10 +105,10 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
       content: formData.content.trim() !== '',
       weddingDate: formData.weddingDate.trim() !== '',
       location: formData.location.trim() !== '',
-      featuredImage: !!formData.featuredImageKey
+      featuredImage: !!formData.featuredImageKey,
     };
 
-    return Object.values(requiredFields).every(field => field);
+    return Object.values(requiredFields).every((field) => field);
   };
 
   const getMissingFields = () => {
@@ -110,10 +142,13 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
         ...formData,
         featured_image_key: formData.featuredImageKey || null,
         featured_image_url: formData.featuredImageUrl || null,
+        featured_image_alt: formData.featuredImageAlt || null,
         wedding_date: formData.weddingDate || null,
         location: formData.location || null,
         gallery_images: formData.gallery_images || [],
-        status: saveAsDraft ? 'draft' : 'published'
+        gallery_image_alts: formData.galleryImageAlts || {},
+        meta_description: formData.meta_description || null,
+        status: saveAsDraft ? 'draft' : 'published',
       };
 
       if (saveAsDraft) {
@@ -126,12 +161,14 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     }
   };
 
-  const handleFeaturedImageUpload = (files: Array<{ key: string; url: string }>) => {
+  const handleFeaturedImageUpload = (
+    files: Array<{ key: string; url: string }>
+  ) => {
     if (files.length > 0) {
       setFormData({
         ...formData,
         featuredImageKey: files[0].url,
-        featuredImageUrl: files[0].url
+        featuredImageUrl: files[0].url,
       });
       // Reset upload states after successful upload
       setTimeout(() => {
@@ -139,6 +176,48 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
         setIsFeaturedImageUploading(false);
       }, 500);
     }
+  };
+
+  const handleAltTextSave = (altText: string) => {
+    if (altTextModal.imageType === 'featured') {
+      setFormData({
+        ...formData,
+        featuredImageAlt: altText,
+      });
+    } else if (
+      altTextModal.imageType === 'gallery' &&
+      altTextModal.galleryIndex !== undefined
+    ) {
+      const imageUrl = formData.gallery_images[altTextModal.galleryIndex];
+      setFormData({
+        ...formData,
+        galleryImageAlts: {
+          ...formData.galleryImageAlts,
+          [imageUrl]: altText,
+        },
+      });
+    }
+  };
+
+  const openAltTextModal = (
+    imageUrl: string,
+    type: 'featured' | 'gallery',
+    galleryIndex?: number
+  ) => {
+    setAltTextModal({
+      isOpen: true,
+      imageUrl,
+      imageType: type,
+      galleryIndex,
+    });
+  };
+
+  const closeAltTextModal = () => {
+    setAltTextModal({
+      isOpen: false,
+      imageUrl: '',
+      imageType: 'featured',
+    });
   };
 
   const handleDeleteClick = () => {
@@ -149,10 +228,10 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     if (formData.featuredImageKey && !isDeleting) {
       setIsDeleting(true);
       setDeleteProgress(0);
-      
+
       try {
         const progressInterval = setInterval(() => {
-          setDeleteProgress(prev => {
+          setDeleteProgress((prev) => {
             if (prev >= 90) {
               clearInterval(progressInterval);
               return 90;
@@ -178,7 +257,8 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
           setFormData({
             ...formData,
             featuredImageKey: '',
-            featuredImageUrl: ''
+            featuredImageUrl: '',
+            featuredImageAlt: '',
           });
           setShowDeleteImageConfirm(false);
           setIsDeleting(false);
@@ -196,15 +276,22 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
   const hasUnsavedChanges = () => {
     // Create copies of the data without gallery_images
-    const { gallery_images: currentGallery, ...currentDataWithoutGallery } = formData;
-    const { gallery_images: initialGallery, ...initialDataWithoutGallery } = initialFormData;
-    
-    return JSON.stringify(initialDataWithoutGallery) !== JSON.stringify(currentDataWithoutGallery);
+    const { gallery_images: currentGallery, ...currentDataWithoutGallery } =
+      formData;
+    const { gallery_images: initialGallery, ...initialDataWithoutGallery } =
+      initialFormData;
+
+    return (
+      JSON.stringify(initialDataWithoutGallery) !==
+      JSON.stringify(currentDataWithoutGallery)
+    );
   };
 
   const handleClose = () => {
     const hasTitle = formData.title.trim() !== '';
-    const hasImages = (formData.featuredImageUrl || (formData.gallery_images && formData.gallery_images.length > 0));
+    const hasImages =
+      formData.featuredImageUrl ||
+      (formData.gallery_images && formData.gallery_images.length > 0);
     const isNewPost = !initialData;
 
     if (hasImages && !hasTitle && isNewPost) {
@@ -217,7 +304,10 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
   };
 
   const handleCleanupAndClose = async () => {
-    if (!formData.featuredImageUrl && (!formData.gallery_images || formData.gallery_images.length === 0)) {
+    if (
+      !formData.featuredImageUrl &&
+      (!formData.gallery_images || formData.gallery_images.length === 0)
+    ) {
       onClose();
       return;
     }
@@ -225,7 +315,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     // Only delete images if this is a new post without a title
     const isNewPost = !initialData;
     const hasTitle = formData.title.trim() !== '';
-    
+
     if (!isNewPost || hasTitle) {
       onClose();
       return;
@@ -236,7 +326,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
     try {
       const progressInterval = setInterval(() => {
-        setDeleteProgress(prev => {
+        setDeleteProgress((prev) => {
           if (prev >= 90) {
             clearInterval(progressInterval);
             return 90;
@@ -280,14 +370,13 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
       }
 
       setDeleteProgress(100);
-      
+
       setTimeout(() => {
         setIsDeleting(false);
         setDeleteProgress(0);
         setShowImageDeleteWarning(false);
         onClose();
       }, 500);
-
     } catch (error) {
       console.error('Error cleaning up images:', error);
       setIsDeleting(false);
@@ -295,11 +384,13 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     }
   };
 
-  const handleGalleryImageUpload = (files: Array<{ key: string; url: string }>) => {
-    const newUrls = files.map(file => file.url);
-    setFormData(prevData => ({
+  const handleGalleryImageUpload = (
+    files: Array<{ key: string; url: string }>
+  ) => {
+    const newUrls = files.map((file) => file.url);
+    setFormData((prevData) => ({
       ...prevData,
-      gallery_images: [...(prevData.gallery_images || []), ...newUrls]
+      gallery_images: [...(prevData.gallery_images || []), ...newUrls],
     }));
   };
 
@@ -307,10 +398,10 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     try {
       setIsDeleting(true);
       setDeleteProgress(0);
-      
+
       // Simulate progress updates
       const progressInterval = setInterval(() => {
-        setDeleteProgress(prev => {
+        setDeleteProgress((prev) => {
           if (prev >= 90) {
             clearInterval(progressInterval);
             return 90;
@@ -337,24 +428,28 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
       // Remove from array only after successful deletion
       const newGalleryImages = [...formData.gallery_images];
       newGalleryImages.splice(index, 1);
-      
-      // Update form data
-      setFormData(prevData => ({
+
+      // Update form data and remove alt text for deleted image
+      const imageToDeleteUrl = formData.gallery_images[index];
+      const newGalleryImageAlts = { ...formData.galleryImageAlts };
+      delete newGalleryImageAlts[imageToDeleteUrl];
+
+      setFormData((prevData) => ({
         ...prevData,
-        gallery_images: newGalleryImages
+        gallery_images: newGalleryImages,
+        galleryImageAlts: newGalleryImageAlts,
       }));
 
       // Complete the progress
       clearInterval(progressInterval);
       setDeleteProgress(100);
-      
+
       setTimeout(() => {
         setIsDeleting(false);
         setDeleteProgress(0);
         setShowDeleteImageConfirm(false);
         setDeleteImageIndex(null);
       }, 500);
-
     } catch (error) {
       console.error('Error deleting image:', error);
       setIsDeleting(false);
@@ -372,14 +467,16 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
   const handleNavigatePreview = (direction: 'prev' | 'next') => {
     if (!formData.gallery_images || previewImageIndex === -1) return;
-    
+
     let newIndex = previewImageIndex;
     if (direction === 'prev') {
-      newIndex = newIndex > 0 ? newIndex - 1 : formData.gallery_images.length - 1;
+      newIndex =
+        newIndex > 0 ? newIndex - 1 : formData.gallery_images.length - 1;
     } else {
-      newIndex = newIndex < formData.gallery_images.length - 1 ? newIndex + 1 : 0;
+      newIndex =
+        newIndex < formData.gallery_images.length - 1 ? newIndex + 1 : 0;
     }
-    
+
     setPreviewImageIndex(newIndex);
     setPreviewImage(formData.gallery_images[newIndex]);
   };
@@ -418,9 +515,9 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     const [removed] = newItems.splice(source.index, 1);
     newItems.splice(destination.index, 0, removed);
 
-    setFormData(prevData => ({
+    setFormData((prevData) => ({
       ...prevData,
-      gallery_images: newItems
+      gallery_images: newItems,
     }));
   };
 
@@ -446,24 +543,29 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     }
 
     // For new blog posts, check if any field has content
-    return formData.title.trim() !== '' ||
+    return (
+      formData.title.trim() !== '' ||
       formData.slug.trim() !== '' ||
       formData.content.trim() !== '' ||
       formData.weddingDate.trim() !== '' ||
       formData.location.trim() !== '' ||
       formData.featuredImageKey !== '' ||
-      (formData.gallery_images && formData.gallery_images.length > 0);
+      formData.meta_description?.trim() !== '' ||
+      (formData.gallery_images && formData.gallery_images.length > 0)
+    );
   };
 
   function getVideoId(url: string) {
     try {
       // YouTube URL patterns
-      const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+      const youtubeRegex =
+        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
       const youtubeMatch = url.match(youtubeRegex);
       if (youtubeMatch) return { type: 'youtube', id: youtubeMatch[1] };
 
       // Vimeo URL patterns
-      const vimeoRegex = /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|))(\d+)(?:[a-zA-Z0-9_\-]+)?/;
+      const vimeoRegex =
+        /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|))(\d+)(?:[a-zA-Z0-9_\-]+)?/;
       const vimeoMatch = url.match(vimeoRegex);
       if (vimeoMatch) return { type: 'vimeo', id: vimeoMatch[1] };
 
@@ -475,7 +577,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
   function VideoPreview({ url }: { url: string }) {
     const videoInfo = getVideoId(url);
-    
+
     if (!videoInfo) return null;
 
     let embedUrl = '';
@@ -486,11 +588,11 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
     }
 
     return (
-      <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100">
+      <div className='relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100'>
         <iframe
           src={embedUrl}
-          className="absolute inset-0 w-full h-full"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          className='absolute inset-0 w-full h-full'
+          allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
           allowFullScreen
         />
       </div>
@@ -522,11 +624,17 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             onClose();
           }
         }}
-        closeButtonLabel={isUploading ? "Upload in progress..." : (hasAnyData() ? "Save as Draft" : "Cancel")}
+        closeButtonLabel={
+          isUploading
+            ? 'Upload in progress...'
+            : hasAnyData()
+            ? 'Save as Draft'
+            : 'Cancel'
+        }
         icon={hasAnyData() ? RiSaveLine : RiCloseLine}
       >
-        <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
-          <FormField label="Title" required>
+        <form onSubmit={(e) => handleSubmit(e, false)} className='space-y-6'>
+          <FormField label='Title' required>
             <Input
               ref={titleInputRef}
               required
@@ -536,89 +644,132 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                 setFormData({
                   ...formData,
                   title,
-                  slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                  slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
                 });
               }}
-              placeholder="Enter blog post title"
+              placeholder='Enter blog post title'
             />
           </FormField>
 
-          <FormField label="Slug" required>
+          <FormField label='Slug' required>
             <Input
               required
               value={formData.slug}
-              onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-              placeholder="url-friendly-slug"
+              onChange={(e) =>
+                setFormData({ ...formData, slug: e.target.value })
+              }
+              placeholder='url-friendly-slug'
             />
           </FormField>
 
-          <div className="grid grid-cols-2 gap-6">
-            <FormField label="Wedding Date" required>
+          <FormField label='Meta Description'>
+            <Input
+              value={formData.meta_description || ''}
+              onChange={(e) =>
+                setFormData({ ...formData, meta_description: e.target.value })
+              }
+              placeholder='Brief description for search engines (optional)'
+              maxLength={160}
+            />
+            <p className='text-sm text-gray-500 mt-1'>
+              {formData.meta_description?.length || 0}/160 characters
+            </p>
+          </FormField>
+
+          <div className='grid grid-cols-2 gap-6'>
+            <FormField label='Wedding Date' required>
               <Input
-                type="date"
+                type='date'
                 required
                 value={formData.weddingDate}
-                onChange={(e) => setFormData({ ...formData, weddingDate: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, weddingDate: e.target.value })
+                }
               />
             </FormField>
 
-            <FormField label="Location" required>
+            <FormField label='Location' required>
               <Input
                 required
                 value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="e.g., Mumbai, India"
+                onChange={(e) =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
+                placeholder='e.g., Mumbai, India'
               />
             </FormField>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
+          <div className='grid grid-cols-2 gap-6 bg-gray-50 p-4 rounded-lg'>
+            <div className='flex items-center justify-between'>
               <div>
-                <h4 className="font-medium text-gray-900">Featured on Home</h4>
-                <p className="text-sm text-gray-500">Show this post on the home page</p>
+                <h4 className='font-medium text-gray-900'>Featured on Home</h4>
+                <p className='text-sm text-gray-500'>
+                  Show this post on the home page
+                </p>
               </div>
               <Switch
                 checked={formData.isFeaturedHome}
-                onChange={(checked) => setFormData({ ...formData, isFeaturedHome: checked })}
+                onChange={(checked) =>
+                  setFormData({ ...formData, isFeaturedHome: checked })
+                }
               />
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className='flex items-center justify-between'>
               <div>
-                <h4 className="font-medium text-gray-900">Featured in Blog</h4>
-                <p className="text-sm text-gray-500">Highlight in blog stories</p>
+                <h4 className='font-medium text-gray-900'>Featured in Blog</h4>
+                <p className='text-sm text-gray-500'>
+                  Highlight in blog stories
+                </p>
               </div>
               <Switch
                 checked={formData.isFeaturedBlog}
-                onChange={(checked) => setFormData({ ...formData, isFeaturedBlog: checked })}
+                onChange={(checked) =>
+                  setFormData({ ...formData, isFeaturedBlog: checked })
+                }
               />
             </div>
           </div>
 
-          <FormField label="Featured Image" required>
-            <div className="space-y-2">
+          <FormField label='Featured Image' required>
+            <div className='space-y-2'>
               {formData.featuredImageUrl ? (
-                <div className="relative aspect-video rounded-lg overflow-hidden group">
+                <div className='relative aspect-video rounded-lg overflow-hidden group'>
                   <Image
                     src={formData.featuredImageUrl}
-                    alt="Featured image"
-                    className="object-cover"
+                    alt='Featured image'
+                    className='object-cover'
                     fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    sizes='(max-width: 768px) 100vw, 50vw'
                     priority
                   />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
+                  <div className='absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center'>
+                    <div className='flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all'>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          openAltTextModal(
+                            formData.featuredImageUrl || '',
+                            'featured'
+                          );
+                        }}
+                        className='p-2 bg-white rounded-full shadow-lg transition-all text-gray-700 hover:bg-gray-100'
+                        aria-label='Edit alt text'
+                        title='Edit alt text'
+                        type='button'
+                      >
+                        <RiEdit2Line size={20} />
+                      </button>
                       <button
                         onClick={(e) => {
                           e.preventDefault();
                           setPreviewImage(formData.featuredImageUrl || null);
                         }}
-                        className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all"
-                        aria-label="View full size"
-                        title="View full size"
-                        type="button"
+                        className='p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100 shadow-lg transition-all'
+                        aria-label='View full size'
+                        title='View full size'
+                        type='button'
                       >
                         <RiZoomInLine size={20} />
                       </button>
@@ -628,24 +779,29 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                             e.preventDefault();
                             handleDeleteClick();
                           }}
-                          className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all"
+                          className='p-2 bg-white rounded-full text-red-600 hover:bg-red-50 shadow-lg transition-all'
                           disabled={isDeleting || isUploading}
-                          aria-label="Delete image"
-                          title="Delete image"
-                          type="button"
+                          aria-label='Delete image'
+                          title='Delete image'
+                          type='button'
                         >
                           <RiCloseLine size={20} />
                         </button>
                       )}
                     </div>
                   </div>
+                  {formData.featuredImageAlt && (
+                    <div className='absolute bottom-2 left-2 bg-black bg-opacity-50 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-medium'>
+                      Alt text added
+                    </div>
+                  )}
                 </div>
               ) : (
                 <ImageDropzone
                   onChange={handleFeaturedImageUpload}
                   onDelete={handleDeleteClick}
                   disabled={isDeleting || isUploading}
-                  folder="blogposts"
+                  folder='blogposts'
                   multiple={false}
                   onUploadStatusChange={(status) => {
                     const isCurrentlyUploading = status === 'uploading';
@@ -655,14 +811,14 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                 />
               )}
               {isDeleting && (
-                <div className="mt-2">
-                  <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                <div className='mt-2'>
+                  <div className='h-1 w-full bg-gray-200 rounded-full overflow-hidden'>
+                    <div
+                      className='h-full bg-red-600 transition-all duration-300 ease-out'
                       style={{ width: `${deleteProgress}%` }}
                     />
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className='text-sm text-gray-500 mt-1'>
                     Deleting image... {deleteProgress}%
                   </p>
                 </div>
@@ -670,184 +826,237 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             </div>
           </FormField>
 
-          <FormField label="Gallery Images">
-            <div className="space-y-4">
+          <FormField label='Gallery Images'>
+            <div className='space-y-4'>
               <ImageDropzone
                 onChange={handleGalleryImageUpload}
                 value={formData.gallery_images}
                 disabled={isDeleting || isUploading}
-                folder="bloggallery"
+                folder='bloggallery'
                 multiple={true}
                 hidePreview={true}
                 onUploadStatusChange={(status) => {
                   setIsUploading(status === 'uploading');
                 }}
               />
-              <p className="text-sm text-gray-500 mb-4">
-                Upload images for the blog gallery ({formData.gallery_images?.length || 0} uploaded)
+              <p className='text-sm text-gray-500 mb-4'>
+                Upload images for the blog gallery (
+                {formData.gallery_images?.length || 0} uploaded)
               </p>
-              
-              {formData.gallery_images && formData.gallery_images.length > 0 && (
-                <div className="border-t pt-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-4">
-                    Gallery Preview (Drag images to reorder)
-                  </h4>
-                  <DragDropContext onDragEnd={handleDragEnd}>
-                    <Droppable
-                      droppableId="gallery"
-                      direction="horizontal"
-                      renderClone={(provided, snapshot, rubric) => (
-                        <div
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          ref={provided.innerRef}
-                          className="relative aspect-video rounded-lg overflow-hidden shadow-2xl"
-                          style={{
-                            ...provided.draggableProps.style,
-                            width: '300px',
-                            height: '180px',
-                          }}
-                        >
-                          <Image
-                            src={formData.gallery_images[rubric.source.index]}
-                            alt={`Gallery image ${rubric.source.index + 1}`}
-                            className="w-full h-full object-cover"
-                            fill
-                            sizes="300px"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-30">
-                            <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm">
-                              {rubric.source.index + 1}
+
+              {formData.gallery_images &&
+                formData.gallery_images.length > 0 && (
+                  <div className='border-t pt-4'>
+                    <h4 className='text-sm font-medium text-gray-900 mb-4'>
+                      Gallery Preview (Drag images to reorder)
+                    </h4>
+                    <DragDropContext onDragEnd={handleDragEnd}>
+                      <Droppable
+                        droppableId='gallery'
+                        direction='horizontal'
+                        renderClone={(provided, snapshot, rubric) => (
+                          <div
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            ref={provided.innerRef}
+                            className='relative aspect-video rounded-lg overflow-hidden shadow-2xl'
+                            style={{
+                              ...provided.draggableProps.style,
+                              width: '300px',
+                              height: '180px',
+                            }}
+                          >
+                            <Image
+                              src={formData.gallery_images[rubric.source.index]}
+                              alt={`Gallery image ${rubric.source.index + 1}`}
+                              className='w-full h-full object-cover'
+                              fill
+                              sizes='300px'
+                            />
+                            <div className='absolute inset-0 bg-black bg-opacity-30'>
+                              <div className='absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm'>
+                                {rubric.source.index + 1}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    >
-                      {(provided) => (
-                        <div 
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          className="flex items-start gap-6 overflow-x-auto pb-4 min-h-[160px]"
-                        >
-                          {formData.gallery_images.map((imageUrl, index) => (
-                            <Draggable 
-                              key={`${imageUrl}-${index}`} 
-                              draggableId={`${imageUrl}-${index}`} 
-                              index={index}
-                            >
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  style={{
-                                    ...provided.draggableProps.style,
-                                    width: '300px',
-                                    height: snapshot.isDragging ? '180px' : 'auto',
-                                  }}
-                                  className={`
+                        )}
+                      >
+                        {(provided) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className='flex items-start gap-6 overflow-x-auto pb-4 min-h-[160px]'
+                          >
+                            {formData.gallery_images.map((imageUrl, index) => (
+                              <Draggable
+                                key={`${imageUrl}-${index}`}
+                                draggableId={`${imageUrl}-${index}`}
+                                index={index}
+                              >
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    style={{
+                                      ...provided.draggableProps.style,
+                                      width: '300px',
+                                      height: snapshot.isDragging
+                                        ? '180px'
+                                        : 'auto',
+                                    }}
+                                    className={`
                                     relative aspect-video rounded-lg overflow-hidden group flex-shrink-0
-                                    ${snapshot.isDragging ? 'opacity-0' : 'opacity-100'}
+                                    ${
+                                      snapshot.isDragging
+                                        ? 'opacity-0'
+                                        : 'opacity-100'
+                                    }
                                     hover:ring-2 hover:ring-[#8B4513] transition-all
                                   `}
-                                >
-                                  {/* Image number */}
-                                  <div className="absolute top-2 left-2 z-30 bg-black bg-opacity-75 text-white px-2 py-1 rounded-full text-sm font-medium">
-                                    {index + 1}
-                                  </div>
-
-                                  {/* Drag handle overlay - centered */}
-                                  <div
-                                    {...provided.dragHandleProps}
-                                    className="absolute inset-0 z-20 cursor-move flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
                                   >
-                                    <div className="bg-black bg-opacity-50 rounded-lg p-2 transform scale-75 group-hover:scale-100 transition-all duration-200">
-                                      <RiDragMove2Line className="w-6 h-6 text-white" />
+                                    {/* Image number */}
+                                    <div className='absolute top-2 left-2 z-30 bg-black bg-opacity-75 text-white px-2 py-1 rounded-full text-sm font-medium'>
+                                      {index + 1}
+                                    </div>
+
+                                    {/* Drag handle overlay - centered */}
+                                    <div
+                                      {...provided.dragHandleProps}
+                                      className='absolute inset-0 z-20 cursor-move flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200'
+                                    >
+                                      <div className='bg-black bg-opacity-50 rounded-lg p-2 transform scale-75 group-hover:scale-100 transition-all duration-200'>
+                                        <RiDragMove2Line className='w-6 h-6 text-white' />
+                                      </div>
+                                    </div>
+
+                                    <Image
+                                      src={imageUrl}
+                                      alt={`Gallery image ${index + 1}`}
+                                      className='w-full h-full object-cover'
+                                      fill
+                                      sizes='300px'
+                                    />
+
+                                    {/* Controls overlay */}
+                                    <div className='absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all'>
+                                      {/* Control buttons container */}
+                                      <div className='absolute top-2 right-2 flex items-center gap-2 z-30'>
+                                        {/* Alt text button */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            openAltTextModal(
+                                              imageUrl,
+                                              'gallery',
+                                              index
+                                            );
+                                          }}
+                                          className='p-1.5 bg-white rounded-full opacity-0 group-hover:opacity-100 shadow-lg transition-all text-gray-600 hover:bg-gray-100'
+                                          type='button'
+                                          aria-label={`Edit alt text for gallery image ${
+                                            index + 1
+                                          }`}
+                                          title='Edit alt text'
+                                        >
+                                          <RiEdit2Line size={16} />
+                                        </button>
+
+                                        {/* Preview button */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handlePreviewImage(imageUrl, index);
+                                          }}
+                                          className='p-1.5 bg-white rounded-full text-gray-600 opacity-0 group-hover:opacity-100 hover:bg-gray-100 shadow-lg transition-all'
+                                          type='button'
+                                          aria-label={`Preview gallery image ${
+                                            index + 1
+                                          }`}
+                                          title='Preview image'
+                                        >
+                                          <RiZoomInLine size={16} />
+                                        </button>
+
+                                        {/* Delete button */}
+                                        <button
+                                          onClick={(e) =>
+                                            handleImageDeleteClick(index, e)
+                                          }
+                                          className='p-1.5 bg-white rounded-full text-red-600 opacity-0 group-hover:opacity-100 hover:bg-red-50 shadow-lg transition-all'
+                                          type='button'
+                                          aria-label={`Delete gallery image ${
+                                            index + 1
+                                          }`}
+                                          title='Delete image'
+                                        >
+                                          <RiCloseLine size={16} />
+                                        </button>
+                                      </div>
+
+                                      {/* Alt text indicator */}
+                                      {formData.galleryImageAlts?.[
+                                        imageUrl
+                                      ] && (
+                                        <div className='absolute bottom-2 left-2 bg-black bg-opacity-50 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-medium z-30'>
+                                          Alt text added
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
-
-                                  <Image
-                                    src={imageUrl}
-                                    alt={`Gallery image ${index + 1}`}
-                                    className="w-full h-full object-cover"
-                                    fill
-                                    sizes="300px"
-                                  />
-
-                                  {/* Controls overlay */}
-                                  <div 
-                                    className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all"
-                                  >
-                                    {/* Control buttons container */}
-                                    <div className="absolute top-2 right-2 flex items-center gap-2 z-30">
-                                      {/* Preview button */}
-                                      <button
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          handlePreviewImage(imageUrl, index);
-                                        }}
-                                        className="p-1.5 bg-white rounded-full text-gray-600 opacity-0 group-hover:opacity-100 hover:bg-gray-100 shadow-lg transition-all"
-                                        type="button"
-                                        aria-label={`Preview gallery image ${index + 1}`}
-                                        title="Preview image"
-                                      >
-                                        <RiZoomInLine size={16} />
-                                      </button>
-
-                                      {/* Delete button */}
-                                      <button
-                                        onClick={(e) => handleImageDeleteClick(index, e)}
-                                        className="p-1.5 bg-white rounded-full text-red-600 opacity-0 group-hover:opacity-100 hover:bg-red-50 shadow-lg transition-all"
-                                        type="button"
-                                        aria-label={`Delete gallery image ${index + 1}`}
-                                        title="Delete image"
-                                      >
-                                        <RiCloseLine size={16} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
-                        </div>
-                      )}
-                    </Droppable>
-                  </DragDropContext>
-                </div>
-              )}
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </DragDropContext>
+                  </div>
+                )}
             </div>
           </FormField>
 
-          <FormField label="Video URL (Optional)">
+          <FormField label='Video URL (Optional)'>
             {!isValidVideo || !formData.video_url ? (
               <div>
                 <Input
-                  type="url"
+                  type='url'
                   value={formData.video_url || ''}
-                  onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
-                  placeholder="Enter YouTube or Vimeo URL (optional)"
-                  className={formData.video_url && !isValidVideo ? 'border-red-500' : ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, video_url: e.target.value })
+                  }
+                  placeholder='Enter YouTube or Vimeo URL (optional)'
+                  className={
+                    formData.video_url && !isValidVideo ? 'border-red-500' : ''
+                  }
                 />
                 {formData.video_url && !isValidVideo && (
-                  <p className="text-sm text-red-500 mt-1">
+                  <p className='text-sm text-red-500 mt-1'>
                     Please enter a valid YouTube or Vimeo URL
                   </p>
                 )}
               </div>
             ) : (
               <div>
-                <div className="relative rounded-lg overflow-hidden">
-                  {formData.video_url && <VideoPreview url={formData.video_url} />}
-                  <div className="absolute top-3 right-3 flex gap-2">
+                <div className='relative rounded-lg overflow-hidden'>
+                  {formData.video_url && (
+                    <VideoPreview url={formData.video_url} />
+                  )}
+                  <div className='absolute top-3 right-3 flex gap-2'>
                     <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, video_url: '' })}
-                      className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 hover:text-red-700 shadow-lg transition-all hover:scale-110 border border-red-100 group"
-                      title="Remove video"
+                      type='button'
+                      onClick={() =>
+                        setFormData({ ...formData, video_url: '' })
+                      }
+                      className='p-2 bg-white rounded-full text-red-600 hover:bg-red-50 hover:text-red-700 shadow-lg transition-all hover:scale-110 border border-red-100 group'
+                      title='Remove video'
                     >
-                      <RiCloseLine size={24} className="group-hover:rotate-90 transition-transform duration-200" />
+                      <RiCloseLine
+                        size={24}
+                        className='group-hover:rotate-90 transition-transform duration-200'
+                      />
                     </button>
                   </div>
                 </div>
@@ -855,19 +1064,19 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             )}
           </FormField>
 
-          <FormField label="Content" required>
+          <FormField label='Content' required>
             <TextEditor
               value={formData.content}
               onChange={(content) => setFormData({ ...formData, content })}
             />
           </FormField>
 
-          <div className="flex justify-end space-x-4 pt-6 border-t mt-8">
+          <div className='flex justify-end space-x-4 pt-6 border-t mt-8'>
             {/* Always show buttons in edit mode or when there are changes */}
             {(initialData || hasAnyData()) && (
               <>
-                <Button 
-                  variant="secondary" 
+                <Button
+                  variant='secondary'
                   onClick={(e) => {
                     e.preventDefault();
                     if (isUploading) {
@@ -880,12 +1089,16 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                     isUploading ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                   disabled={isUploading}
-                  title={isUploading ? 'Please wait for upload to complete' : undefined}
+                  title={
+                    isUploading
+                      ? 'Please wait for upload to complete'
+                      : undefined
+                  }
                 >
                   Save as Draft
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type='submit'
                   icon={RiSaveLine}
                   disabled={!isFormComplete() || isUploading}
                   onClick={(e) => {
@@ -909,17 +1122,23 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                     isUploading
                       ? 'Please wait for upload to complete'
                       : !isFormComplete()
-                      ? `Cannot publish: Missing ${getMissingFields().join(', ')}`
-                      : initialData ? 'Update blog post' : 'Publish blog post'
+                      ? `Cannot publish: Missing ${getMissingFields().join(
+                          ', '
+                        )}`
+                      : initialData
+                      ? 'Update blog post'
+                      : 'Publish blog post'
                   }
                 >
                   {!isFormComplete() ? (
-                    <span className="flex items-center gap-1">
-                      <RiErrorWarningLine className="w-4 h-4" />
+                    <span className='flex items-center gap-1'>
+                      <RiErrorWarningLine className='w-4 h-4' />
                       Incomplete
                     </span>
+                  ) : initialData ? (
+                    'Update Post'
                   ) : (
-                    initialData ? 'Update Post' : 'Publish Post'
+                    'Publish Post'
                   )}
                 </Button>
               </>
@@ -929,8 +1148,8 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
       </FormModal>
 
       {previewImage && (
-        <div 
-          className="fixed inset-0 z-50 bg-black bg-opacity-90"
+        <div
+          className='fixed inset-0 z-50 bg-black bg-opacity-90'
           onClick={() => {
             setPreviewImage(null);
             setPreviewImageIndex(-1);
@@ -942,11 +1161,11 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
               setPreviewImage(null);
               setPreviewImageIndex(-1);
             }}
-            className="absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors"
-            aria-label="Close preview"
-            type="button"
+            className='absolute top-4 right-4 z-10 p-2 text-white hover:text-gray-300 transition-colors'
+            aria-label='Close preview'
+            type='button'
           >
-            <RiCloseLine className="w-8 h-8" />
+            <RiCloseLine className='w-8 h-8' />
           </button>
 
           {/* Navigation buttons */}
@@ -955,11 +1174,11 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
               e.stopPropagation();
               handleNavigatePreview('prev');
             }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors"
-            aria-label="Previous image"
-            type="button"
+            className='absolute left-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors'
+            aria-label='Previous image'
+            type='button'
           >
-            <RiArrowLeftSLine className="w-8 h-8" />
+            <RiArrowLeftSLine className='w-8 h-8' />
           </button>
 
           <button
@@ -967,29 +1186,29 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
               e.stopPropagation();
               handleNavigatePreview('next');
             }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors"
-            aria-label="Next image"
-            type="button"
+            className='absolute right-4 top-1/2 -translate-y-1/2 p-2 text-white hover:text-gray-300 transition-colors'
+            aria-label='Next image'
+            type='button'
           >
-            <RiArrowRightSLine className="w-8 h-8" />
+            <RiArrowRightSLine className='w-8 h-8' />
           </button>
 
           {/* Image container */}
-          <div 
-            className="w-full h-full flex items-center justify-center p-4"
+          <div
+            className='w-full h-full flex items-center justify-center p-4'
             onClick={(e) => e.stopPropagation()}
           >
             <Image
               src={previewImage}
-              alt="Preview image"
-              className="max-w-[90vw] max-h-[85vh] object-contain"
+              alt='Preview image'
+              className='max-w-[90vw] max-h-[85vh] object-contain'
               width={1920}
               height={1080}
               priority
             />
             {/* Image counter */}
             {previewImageIndex !== -1 && formData.gallery_images && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-full text-sm">
+              <div className='absolute bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-full text-sm'>
                 {previewImageIndex + 1} / {formData.gallery_images.length}
               </div>
             )}
@@ -999,14 +1218,16 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
       {showDeleteImageConfirm && (
         <ConfirmModal
-          title="⚠️ Delete Image Permanently"
+          title='⚠️ Delete Image Permanently'
           message={
-            <div className="space-y-4">
-              <div className="space-y-4">
+            <div className='space-y-4'>
+              <div className='space-y-4'>
                 <p>Are you sure you want to delete this image?</p>
-                <div className="bg-red-50 p-4 rounded-lg space-y-2">
-                  <div className="font-medium text-red-800">This will permanently delete:</div>
-                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                <div className='bg-red-50 p-4 rounded-lg space-y-2'>
+                  <div className='font-medium text-red-800'>
+                    This will permanently delete:
+                  </div>
+                  <ul className='list-disc list-inside text-red-700 space-y-1 ml-2'>
                     {deleteImageIndex === null ? (
                       <li>The featured image</li>
                     ) : (
@@ -1014,25 +1235,27 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
                     )}
                     <li>The image from storage</li>
                   </ul>
-                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                  <div className='text-red-800 font-medium mt-2'>
+                    This action cannot be undone.
+                  </div>
                 </div>
               </div>
               {isDeleting && (
-                <div className="mt-4">
-                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                <div className='mt-4'>
+                  <div className='h-2 w-full bg-gray-100 rounded-full overflow-hidden'>
+                    <div
+                      className='h-full bg-red-600 transition-all duration-300 ease-out'
                       style={{ width: `${deleteProgress}%` }}
                     />
                   </div>
-                  <div className="text-sm text-gray-500 mt-2 text-center">
+                  <div className='text-sm text-gray-500 mt-2 text-center'>
                     Deleting image... {deleteProgress}%
                   </div>
                 </div>
               )}
             </div>
           }
-          confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
+          confirmLabel={isDeleting ? 'Deleting...' : 'Delete Permanently'}
           onConfirm={() => {
             if (!isDeleting) {
               if (deleteImageIndex !== null) {
@@ -1059,19 +1282,21 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
       {showTitleWarning && (
         <ConfirmModal
-          title="Title Required"
+          title='Title Required'
           message={
-            <div className="space-y-4">
-              <p className="text-gray-600">A title is required even when saving as a draft.</p>
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 text-[#8B4513]">
-                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+            <div className='space-y-4'>
+              <p className='text-gray-600'>
+                A title is required even when saving as a draft.
+              </p>
+              <div className='bg-yellow-50 p-4 rounded-lg'>
+                <div className='flex items-center gap-2 text-[#8B4513]'>
+                  <RiErrorWarningLine className='flex-shrink-0 w-5 h-5' />
                   <p>Please enter the title before saving.</p>
                 </div>
               </div>
             </div>
           }
-          confirmLabel="OK"
+          confirmLabel='OK'
           onConfirm={() => {
             setShowTitleWarning(false);
             setTimeout(() => {
@@ -1079,7 +1304,7 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             }, 100);
           }}
           onCancel={() => setShowTitleWarning(false)}
-          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          confirmButtonClassName='bg-[#8B4513] hover:bg-[#693610] text-white'
           showCancelButton={false}
           showCloseButton={false}
           allowBackgroundCancel={false}
@@ -1088,38 +1313,46 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
       {showImageDeleteWarning && (
         <ConfirmModal
-          title="⚠️ Delete Uploaded Images"
+          title='⚠️ Delete Uploaded Images'
           message={
-            <div className="space-y-4">
-              <div className="space-y-4">
+            <div className='space-y-4'>
+              <div className='space-y-4'>
                 <p>Are you sure you want to close without saving?</p>
-                <div className="bg-red-50 p-4 rounded-lg space-y-2">
-                  <div className="font-medium text-red-800">This will permanently delete:</div>
-                  <ul className="list-disc list-inside text-red-700 space-y-1 ml-2">
+                <div className='bg-red-50 p-4 rounded-lg space-y-2'>
+                  <div className='font-medium text-red-800'>
+                    This will permanently delete:
+                  </div>
+                  <ul className='list-disc list-inside text-red-700 space-y-1 ml-2'>
                     {formData.featuredImageUrl && <li>The featured image</li>}
-                    {formData.gallery_images && formData.gallery_images.length > 0 && (
-                      <li>All uploaded gallery images ({formData.gallery_images.length} images)</li>
-                    )}
+                    {formData.gallery_images &&
+                      formData.gallery_images.length > 0 && (
+                        <li>
+                          All uploaded gallery images (
+                          {formData.gallery_images.length} images)
+                        </li>
+                      )}
                   </ul>
-                  <div className="text-red-800 font-medium mt-2">This action cannot be undone.</div>
+                  <div className='text-red-800 font-medium mt-2'>
+                    This action cannot be undone.
+                  </div>
                 </div>
               </div>
               {isDeleting && (
-                <div className="mt-4">
-                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-red-600 transition-all duration-300 ease-out"
+                <div className='mt-4'>
+                  <div className='h-2 w-full bg-gray-100 rounded-full overflow-hidden'>
+                    <div
+                      className='h-full bg-red-600 transition-all duration-300 ease-out'
                       style={{ width: `${deleteProgress}%` }}
                     />
                   </div>
-                  <div className="text-sm text-gray-500 mt-2 text-center">
+                  <div className='text-sm text-gray-500 mt-2 text-center'>
                     Deleting images... {deleteProgress}%
                   </div>
                 </div>
               )}
             </div>
           }
-          confirmLabel={isDeleting ? "Deleting..." : "Delete and Close"}
+          confirmLabel={isDeleting ? 'Deleting...' : 'Delete and Close'}
           onConfirm={handleCleanupAndClose}
           onCancel={() => {
             if (!isDeleting) {
@@ -1137,19 +1370,21 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
 
       {showUnsavedChangesWarning && (
         <ConfirmModal
-          title="Unsaved Changes"
+          title='Unsaved Changes'
           message={
-            <div className="space-y-4">
-              <p className="text-gray-600">You have unsaved changes. What would you like to do?</p>
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 text-yellow-800">
-                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
+            <div className='space-y-4'>
+              <p className='text-gray-600'>
+                You have unsaved changes. What would you like to do?
+              </p>
+              <div className='bg-yellow-50 p-4 rounded-lg'>
+                <div className='flex items-center gap-2 text-yellow-800'>
+                  <RiErrorWarningLine className='flex-shrink-0 w-5 h-5' />
                   <p>Choose to save your changes or close without saving.</p>
                 </div>
               </div>
             </div>
           }
-          confirmLabel="Save"
+          confirmLabel='Save'
           onConfirm={(e) => {
             setShowUnsavedChangesWarning(false);
             handleSubmit(e as any, true);
@@ -1158,58 +1393,66 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
             setShowUnsavedChangesWarning(false);
             onClose();
           }}
-          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          confirmButtonClassName='bg-[#8B4513] hover:bg-[#693610] text-white'
           showCancelButton={true}
-          cancelLabel="Exit without saving"
+          cancelLabel='Exit without saving'
         />
       )}
 
       {showIncompleteWarning && (
         <ConfirmModal
-          title="Cannot Publish Incomplete Post"
+          title='Cannot Publish Incomplete Post'
           message={
-            <div className="space-y-4">
-              <p className="text-gray-600">The following required fields are missing:</p>
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 text-yellow-800">
-                  <RiErrorWarningLine className="flex-shrink-0" />
-                  <ul className="list-disc list-inside">
+            <div className='space-y-4'>
+              <p className='text-gray-600'>
+                The following required fields are missing:
+              </p>
+              <div className='bg-yellow-50 p-4 rounded-lg'>
+                <div className='flex items-center gap-2 text-yellow-800'>
+                  <RiErrorWarningLine className='flex-shrink-0' />
+                  <ul className='list-disc list-inside'>
                     {getMissingFields().map((field, index) => (
                       <li key={index}>{field}</li>
                     ))}
                   </ul>
                 </div>
               </div>
-              <p className="text-gray-600">
-                You can either complete these fields to publish, or save as a draft to finish later.
+              <p className='text-gray-600'>
+                You can either complete these fields to publish, or save as a
+                draft to finish later.
               </p>
             </div>
           }
-          confirmLabel="OK"
+          confirmLabel='OK'
           onConfirm={() => setShowIncompleteWarning(false)}
           onCancel={() => setShowIncompleteWarning(false)}
-          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          confirmButtonClassName='bg-[#8B4513] hover:bg-[#693610] text-white'
         />
       )}
 
       {showUploadingWarning && (
         <ConfirmModal
-          title="Upload in Progress"
+          title='Upload in Progress'
           message={
-            <div className="space-y-4">
-              <p className="text-gray-600">Please wait for the image upload to complete before proceeding.</p>
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 text-yellow-800">
-                  <RiErrorWarningLine className="flex-shrink-0 w-5 h-5" />
-                  <p>Images are still being uploaded. Please wait for the upload to finish.</p>
+            <div className='space-y-4'>
+              <p className='text-gray-600'>
+                Please wait for the image upload to complete before proceeding.
+              </p>
+              <div className='bg-yellow-50 p-4 rounded-lg'>
+                <div className='flex items-center gap-2 text-yellow-800'>
+                  <RiErrorWarningLine className='flex-shrink-0 w-5 h-5' />
+                  <p>
+                    Images are still being uploaded. Please wait for the upload
+                    to finish.
+                  </p>
                 </div>
               </div>
             </div>
           }
-          confirmLabel="OK"
+          confirmLabel='OK'
           onConfirm={() => setShowUploadingWarning(false)}
           onCancel={() => setShowUploadingWarning(false)}
-          confirmButtonClassName="bg-[#8B4513] hover:bg-[#693610] text-white"
+          confirmButtonClassName='bg-[#8B4513] hover:bg-[#693610] text-white'
           showCancelButton={false}
         />
       )}
@@ -1217,36 +1460,56 @@ export default function BlogForm({ onClose, onSubmit, onSaveAsDraft, initialData
       {/* Featured Image Upload Modal */}
       {isFeaturedImageUploading && (
         <ConfirmModal
-          title="Uploading Featured Image"
+          title='Uploading Featured Image'
           message={
-            <div className="space-y-8 py-4">
+            <div className='space-y-8 py-4'>
               {/* Elegant loading animation */}
-              <div className="flex flex-col items-center justify-center space-y-6">
-                <div className="relative">
-                  <div className="w-16 h-16 border-4 border-[#8B4513]/20 rounded-full"></div>
-                  <div className="absolute top-0 left-0 w-16 h-16 border-4 border-[#8B4513] rounded-full border-t-transparent animate-spin"></div>
+              <div className='flex flex-col items-center justify-center space-y-6'>
+                <div className='relative'>
+                  <div className='w-16 h-16 border-4 border-[#8B4513]/20 rounded-full'></div>
+                  <div className='absolute top-0 left-0 w-16 h-16 border-4 border-[#8B4513] rounded-full border-t-transparent animate-spin'></div>
                 </div>
-                <div className="flex flex-col items-center space-y-2">
-                  <p className="text-lg font-medium text-gray-800">
+                <div className='flex flex-col items-center space-y-2'>
+                  <p className='text-lg font-medium text-gray-800'>
                     Uploading your image...
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className='text-sm text-gray-500'>
                     Please wait while we process your featured image
                   </p>
                 </div>
               </div>
             </div>
           }
-          confirmLabel="Please wait..."
+          confirmLabel='Please wait...'
           onConfirm={() => {}}
           onCancel={() => {}}
-          confirmButtonClassName="bg-brown-600 hover:bg-brown-700"
+          confirmButtonClassName='bg-brown-600 hover:bg-brown-700'
           showCancelButton={false}
           showCloseButton={false}
           allowBackgroundCancel={false}
           disabled={true}
         />
       )}
+
+      {/* Alt Text Modal */}
+      <AltTextModal
+        isOpen={altTextModal.isOpen}
+        onClose={closeAltTextModal}
+        onSave={handleAltTextSave}
+        currentAltText={
+          altTextModal.imageType === 'featured'
+            ? formData.featuredImageAlt || ''
+            : altTextModal.galleryIndex !== undefined
+            ? formData.galleryImageAlts?.[altTextModal.imageUrl] || ''
+            : ''
+        }
+        imageUrl={altTextModal.imageUrl}
+        title={
+          altTextModal.imageType === 'featured'
+            ? 'Featured Image Alt Text'
+            : 'Gallery Image Alt Text'
+        }
+      />
     </>
   );
 } 
