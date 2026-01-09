@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import { RiSearchLine, RiCalendarLine, RiMailLine, RiPhoneLine, RiBookOpenLine, RiCloseLine, RiArrowRightLine, RiDeleteBin6Line, RiErrorWarningLine } from 'react-icons/ri';
 import { format } from 'date-fns';
 import ConfirmModal from '../components/ConfirmModal';
@@ -37,7 +37,10 @@ export default function ContactSubmissionsClient({ initialSubmissions }: Props) 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState(0);
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   // Real-time subscription
   useEffect(() => {

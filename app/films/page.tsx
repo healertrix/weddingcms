@@ -7,7 +7,7 @@ import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, 
 import FilmForm, { FilmFormData } from './FilmForm';
 import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '../types/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -46,7 +46,10 @@ export default function FilmsPage() {
   const [previewVideo, setPreviewVideo] = useState<string | null>(null);
   const [showMissingFieldsModal, setShowMissingFieldsModal] = useState(false);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const router = useRouter();
 
   useEffect(() => {

@@ -7,7 +7,7 @@ import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, 
 import WeddingForm, { WeddingFormData } from './WeddingForm';
 import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '../types/supabase';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -40,7 +40,10 @@ export default function WeddingsPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showMissingFieldsModal, setShowMissingFieldsModal] = useState(false);
   const [selectedWedding, setSelectedWedding] = useState<Wedding | null>(null);
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const router = useRouter();
 
   useEffect(() => {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { RiCalendarLine, RiVideoLine, RiArticleLine, RiUserSmileLine, RiTimeLine } from 'react-icons/ri';
 import Link from 'next/link';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 // Removed the problematic import
 import Notification from './components/Notification';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -34,7 +34,10 @@ export default function Dashboard() {
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   useEffect(() => {
     fetchCounts();

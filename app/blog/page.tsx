@@ -7,7 +7,7 @@ import { RiAddLine, RiEditLine, RiDeleteBin6Line, RiSearchLine, RiCalendarLine, 
 import BlogForm, { BlogFormData } from './BlogForm';
 import { formatDate } from '../utils/dateFormat';
 import ConfirmModal from '../components/ConfirmModal';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '../types/supabase';
 import { useRouter } from 'next/navigation';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -135,7 +135,10 @@ export default function BlogPage() {
     'all' | 'draft' | 'published'
   >('all');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const router = useRouter();
   const [showMissingFieldsModal, setShowMissingFieldsModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { RiLockLine, RiMailLine } from 'react-icons/ri';
@@ -12,7 +12,10 @@ export default function ForgotPassword() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [debugSteps, setDebugSteps] = useState<Array<{ status: 'info' | 'error' | 'success', message: string }>>([]);
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const router = useRouter();
 
   useEffect(() => {
