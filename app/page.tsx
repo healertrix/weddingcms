@@ -11,13 +11,13 @@ import { formatDistanceToNow, format } from 'date-fns';
 type DashboardCounts = {
   weddings: number;
   films: number;
-  blogs: number;
+  journals: number;
   testimonials: number;
 };
 
 type RecentActivity = {
   id: string;
-  type: 'wedding' | 'film' | 'blog' | 'testimonial';
+  type: 'wedding' | 'film' | 'journal' | 'testimonial';
   action: string;
   details: string;
   time: string;
@@ -29,7 +29,7 @@ export default function Dashboard() {
   const [counts, setCounts] = useState<DashboardCounts>({
     weddings: 0,
     films: 0,
-    blogs: 0,
+    journals: 0,
     testimonials: 0
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
@@ -47,7 +47,7 @@ export default function Dashboard() {
   const fetchCounts = async () => {
     try {
       // Fetch counts for each table
-      const [weddings, films, blogs, testimonials] = await Promise.all([
+      const [weddings, films, journals, testimonials] = await Promise.all([
         supabase.from('weddings').select('id', { count: 'exact' }),
         supabase.from('films').select('id', { count: 'exact' }),
         supabase.from('blog_posts').select('id', { count: 'exact' }),
@@ -57,7 +57,7 @@ export default function Dashboard() {
       setCounts({
         weddings: weddings.count || 0,
         films: films.count || 0,
-        blogs: blogs.count || 0,
+        journals: journals.count || 0,
         testimonials: testimonials.count || 0
       });
     } catch (error) {
@@ -68,7 +68,7 @@ export default function Dashboard() {
 
   const fetchRecentActivity = async () => {
     try {
-      const [weddings, films, blogs, testimonials] = await Promise.all([
+      const [weddings, films, journals, testimonials] = await Promise.all([
         supabase
           .from('weddings')
           .select('id, couple_names, created_at, status')
@@ -110,13 +110,13 @@ export default function Dashboard() {
           link: `/films?id=${f.id}`,
           status: f.status as 'draft' | 'published'
         })) || []),
-        ...(blogs.data?.map(b => ({
+        ...(journals.data?.map(b => ({
           id: b.id,
-          type: 'blog' as const,
-          action: 'Blog post created',
+          type: 'journal' as const,
+          action: 'Journal post created',
           details: b.title,
           time: b.created_at,
-          link: `/blog?id=${b.id}`,
+          link: `/wedding_journal?id=${b.id}`,
           status: b.status as 'draft' | 'published'
         })) || []),
         ...(testimonials.data?.map(t => ({
@@ -141,7 +141,7 @@ export default function Dashboard() {
     switch (type) {
       case 'wedding': return <RiCalendarLine className="w-5 h-5 text-blue-500" />;
       case 'film': return <RiVideoLine className="w-5 h-5 text-purple-500" />;
-      case 'blog': return <RiArticleLine className="w-5 h-5 text-green-500" />;
+      case 'journal': return <RiArticleLine className="w-5 h-5 text-green-500" />;
       case 'testimonial': return <RiUserSmileLine className="w-5 h-5 text-orange-500" />;
       default: return <RiTimeLine className="w-5 h-5 text-gray-500" />;
     }
@@ -190,13 +190,13 @@ export default function Dashboard() {
           </div>
         </Link>
 
-        <Link href="/blog">
+        <Link href="/wedding_journal">
           <div className='bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105'>
             <div className='flex items-center space-x-3 mb-4'>
               <RiArticleLine className='w-6 h-6 text-green-500' />
-              <h3 className='text-lg font-medium'>Blog Posts</h3>
+              <h3 className='text-lg font-medium'>Journal Posts</h3>
             </div>
-            <p className='text-3xl font-semibold'>{counts.blogs}</p>
+            <p className='text-3xl font-semibold'>{counts.journals}</p>
           </div>
         </Link>
 
