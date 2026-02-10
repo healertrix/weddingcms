@@ -29,8 +29,8 @@ export const navigationItems: NavigationItem[] = [
     adminOnly: false
   },
   {
-    label: 'Blog',
-    path: '/blog',
+    label: 'Wedding Journal',
+    path: '/wedding_journal',
     icon: RiArticleLine,
     adminOnly: false
   },

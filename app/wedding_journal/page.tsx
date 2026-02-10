@@ -491,11 +491,11 @@ export default function BlogPage() {
     <div className='min-h-screen max-h-screen flex flex-col p-8 overflow-hidden'>
       <div className='flex-none'>
         <PageHeader
-          title='Blog Posts'
-          description='Manage your blog posts and stories'
+          title='Wedding Journal'
+          description='Manage your wedding stories and journal entries'
           action={
             <Button icon={RiAddLine} onClick={() => setShowForm(true)}>
-              Add Blog Post
+              Add Journal Entry
             </Button>
           }
         />
@@ -505,7 +505,7 @@ export default function BlogPage() {
             <div className='flex-1 relative'>
               <input
                 type='text'
-                placeholder='Search blog posts...'
+                placeholder='Search journal entries...'
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className='w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513] border-gray-200'
@@ -521,7 +521,7 @@ export default function BlogPage() {
                 setStatusFilter(e.target.value as 'all' | 'draft' | 'published')
               }
               className='px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B4513] border-gray-200 bg-white min-w-[130px]'
-              aria-label='Filter blog posts by status'
+              aria-label='Filter journal entries by status'
             >
               <option value='all'>All Status</option>
               <option value='published'>Published</option>
@@ -743,9 +743,9 @@ export default function BlogPage() {
             {filteredPosts.length === 0 && (
               <div className='text-center py-12'>
                 <RiArticleLine className='w-16 h-16 mx-auto text-gray-300 mb-4' />
-                <p className='text-lg text-gray-500'>No blog posts found</p>
+                <p className='text-lg text-gray-500'>No journal entries found</p>
                 <p className='text-sm text-gray-400 mt-1'>
-                  Try adjusting your search or add a new blog post
+                  Try adjusting your search or add a new journal entry
                 </p>
               </div>
             )}
@@ -814,17 +814,17 @@ export default function BlogPage() {
 
       {showDeleteConfirm && deletingPost && (
         <ConfirmModal
-          title='Delete Blog Post'
+          title='Delete Journal Entry'
           message={
             <div className='space-y-4'>
               <div className='space-y-4'>
-                <p>Are you sure you want to delete this blog post?</p>
+                <p>Are you sure you want to delete this journal entry?</p>
                 <div className='bg-red-50 p-4 rounded-lg space-y-2'>
                   <div className='font-medium text-red-800'>
                     This will permanently delete:
                   </div>
                   <ul className='list-disc list-inside text-red-700 space-y-1 ml-2'>
-                    <li>The blog post content</li>
+                    <li>The journal entry content</li>
                     {deletingPost.featured_image_key && (
                       <li>The featured image</li>
                     )}
@@ -850,7 +850,7 @@ export default function BlogPage() {
                     />
                   </div>
                   <div className='text-sm text-gray-500 mt-2 text-center'>
-                    Deleting blog post... {deleteProgress}%
+                    Deleting journal entry... {deleteProgress}%
                   </div>
                 </div>
               )}
@@ -873,7 +873,7 @@ export default function BlogPage() {
 
       {showMissingFieldsModal && selectedPost && (
         <ConfirmModal
-          title='Incomplete Blog Post'
+          title='Incomplete Journal Entry'
           message={
             <div className='space-y-4'>
               <p className='text-gray-600'>

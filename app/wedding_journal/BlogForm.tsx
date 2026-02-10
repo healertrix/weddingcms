@@ -542,7 +542,7 @@ export default function BlogForm({
       return true;
     }
 
-    // For new blog posts, check if any field has content
+    // For new journal entries, check if any field has content
     return (
       formData.title.trim() !== '' ||
       formData.slug.trim() !== '' ||
@@ -612,7 +612,7 @@ export default function BlogForm({
   return (
     <>
       <FormModal
-        title={initialData ? 'Edit Blog Post' : 'Add Blog Post'}
+        title={initialData ? 'Edit Journal Entry' : 'Add Journal Entry'}
         onClose={() => {
           if (isUploading) {
             setShowUploadingWarning(true);
@@ -647,7 +647,7 @@ export default function BlogForm({
                   slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
                 });
               }}
-              placeholder='Enter blog post title'
+              placeholder='Enter journal entry title'
             />
           </FormField>
 
@@ -718,9 +718,9 @@ export default function BlogForm({
 
             <div className='flex items-center justify-between'>
               <div>
-                <h4 className='font-medium text-gray-900'>Featured in Blog</h4>
+                <h4 className='font-medium text-gray-900'>Featured in Journal</h4>
                 <p className='text-sm text-gray-500'>
-                  Highlight in blog stories
+                  Highlight in journal stories
                 </p>
               </div>
               <Switch
@@ -840,7 +840,7 @@ export default function BlogForm({
                 }}
               />
               <p className='text-sm text-gray-500 mb-4'>
-                Upload images for the blog gallery (
+                Upload images for the journal gallery (
                 {formData.gallery_images?.length || 0} uploaded)
               </p>
 
@@ -1126,8 +1126,8 @@ export default function BlogForm({
                           ', '
                         )}`
                       : initialData
-                      ? 'Update blog post'
-                      : 'Publish blog post'
+                      ? 'Update journal entry'
+                      : 'Publish journal entry'
                   }
                 >
                   {!isFormComplete() ? (
