@@ -5,7 +5,8 @@ import {
   RiVideoLine, 
   RiUserSmileLine, 
   RiUserSettingsLine,
-  RiContactsLine
+  RiContactsLine,
+  RiBookOpenLine
 } from 'react-icons/ri';
 
 export type NavigationItem = {
@@ -32,6 +33,12 @@ export const navigationItems: NavigationItem[] = [
     label: 'Wedding Journal',
     path: '/wedding_journal',
     icon: RiArticleLine,
+    adminOnly: false
+  },
+  {
+    label: 'Blogs',
+    path: '/blogs',
+    icon: RiBookOpenLine,
     adminOnly: false
   },
   {
