@@ -18,7 +18,7 @@ type BlogPost = {
   id: string;
   title: string;
   slug: string;
-  content: string;
+  content: string | null;
   featured_image_key: string | null;
   featured_image_alt?: string | null;
   is_featured_home: boolean;
@@ -180,7 +180,7 @@ export default function BlogPage() {
         const to = from + POSTS_PER_PAGE - 1;
 
         const { data, error, count } = await supabase
-          .from('blog_posts')
+          .from('blogs')
           .select('*', { count: 'exact' })
           .order('created_at', { ascending: false })
           .range(from, to);
@@ -240,7 +240,7 @@ export default function BlogPage() {
 
     try {
       const { error } = await supabase
-        .from('blog_posts')
+        .from('blogs')
         .update({ status: newStatus })
         .eq('id', id);
 
@@ -317,7 +317,7 @@ export default function BlogPage() {
       }
 
       const { error: deleteError } = await supabase
-        .from('blog_posts')
+        .from('blogs')
         .delete()
         .eq('id', deletingPost.id);
 
@@ -353,24 +353,27 @@ export default function BlogPage() {
       const postData = {
         title: data.title,
         slug: data.slug,
-        content: data.content,
+        content: data.content || null,
         featured_image_key: data.featuredImageUrl || null,
+        featured_image_alt: data.featuredImageAlt || null,
         is_featured_home: data.isFeaturedHome,
         is_featured_blog: data.isFeaturedBlog,
         gallery_images: data.gallery_images,
-        video_url: isValidVideo ? videoUrl : null, // Only save if URL is valid
+        gallery_image_alts: data.galleryImageAlts || null,
+        video_url: isValidVideo ? videoUrl : null,
+        meta_description: data.meta_description || null,
         status: saveAsDraft ? 'draft' : 'published',
       };
 
       if (editingPost) {
         const { error } = await supabase
-          .from('blog_posts')
+          .from('blogs')
           .update(postData)
           .eq('id', editingPost.id);
 
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('blog_posts').insert([postData]);
+        const { error } = await supabase.from('blogs').insert([postData]);
 
         if (error) throw error;
       }
@@ -396,7 +399,7 @@ export default function BlogPage() {
   ) => {
     try {
       const { error } = await supabase
-        .from('blog_posts')
+        .from('blogs')
         .update({
           [type === 'home' ? 'is_featured_home' : 'is_featured_blog']:
             !currentValue,
@@ -422,9 +425,10 @@ export default function BlogPage() {
   };
 
   const filteredPosts = posts.filter((post) => {
+    const content = post.content || '';
     const matchesSearch =
       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.content.toLowerCase().includes(searchQuery.toLowerCase());
+      content.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus =
       statusFilter === 'all' || post.status === statusFilter;
@@ -653,7 +657,7 @@ export default function BlogPage() {
                   <p
                     className='text-gray-600 flex-grow mb-4 line-clamp-2'
                     dangerouslySetInnerHTML={{
-                      __html: formatContent(post.content),
+                      __html: formatContent(post.content || ''),
                     }}
                   />
 

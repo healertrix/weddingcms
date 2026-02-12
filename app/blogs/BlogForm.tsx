@@ -765,7 +765,7 @@ export default function BlogForm({
                   onChange={handleFeaturedImageUpload}
                   onDelete={handleDeleteClick}
                   disabled={isDeleting || isUploading}
-                  folder='blogposts'
+                  folder='blog'
                   multiple={false}
                   onUploadStatusChange={(status) => {
                     const isCurrentlyUploading = status === 'uploading';
@@ -796,7 +796,7 @@ export default function BlogForm({
                 onChange={handleGalleryImageUpload}
                 value={formData.gallery_images}
                 disabled={isDeleting || isUploading}
-                folder='bloggallery'
+                folder='blog/gallery'
                 multiple={true}
                 hidePreview={true}
                 onUploadStatusChange={(status) => {
@@ -1032,6 +1032,8 @@ export default function BlogForm({
             <TextEditor
               value={formData.content}
               onChange={(content) => setFormData({ ...formData, content })}
+              galleryImages={formData.gallery_images}
+              galleryImageAlts={formData.galleryImageAlts}
             />
           </FormField>
 

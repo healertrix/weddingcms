@@ -60,6 +60,63 @@ export type Database = {
         }
         Relationships: []
       }
+      blogs: {
+        Row: {
+          id: string
+          title: string
+          slug: string
+          content: string | null
+          featured_image_key: string | null
+          featured_image_alt: string | null
+          status: string
+          published_at: string | null
+          created_at: string | null
+          updated_at: string | null
+          is_featured_home: boolean | null
+          is_featured_blog: boolean | null
+          gallery_images: string[] | null
+          gallery_image_alts: Record<string, unknown> | null
+          video_url: string | null
+          meta_description: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          slug: string
+          content?: string | null
+          featured_image_key?: string | null
+          featured_image_alt?: string | null
+          status?: string
+          published_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+          is_featured_home?: boolean | null
+          is_featured_blog?: boolean | null
+          gallery_images?: string[] | null
+          gallery_image_alts?: Record<string, unknown> | null
+          video_url?: string | null
+          meta_description?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          slug?: string
+          content?: string | null
+          featured_image_key?: string | null
+          featured_image_alt?: string | null
+          status?: string
+          published_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+          is_featured_home?: boolean | null
+          is_featured_blog?: boolean | null
+          gallery_images?: string[] | null
+          gallery_image_alts?: Record<string, unknown> | null
+          video_url?: string | null
+          meta_description?: string | null
+        }
+        Relationships: []
+      }
       cms_users: {
         Row: {
           created_at: string
