@@ -616,8 +616,8 @@ export default function BlogForm({
           isUploading
             ? 'Upload in progress...'
             : hasAnyData()
-            ? 'Save as Draft'
-            : 'Cancel'
+              ? 'Save as Draft'
+              : 'Cancel'
         }
         icon={hasAnyData() ? RiSaveLine : RiCloseLine}
       >
@@ -765,7 +765,7 @@ export default function BlogForm({
                   onChange={handleFeaturedImageUpload}
                   onDelete={handleDeleteClick}
                   disabled={isDeleting || isUploading}
-                  folder='blog'
+                  folder='newbloghero'
                   multiple={false}
                   onUploadStatusChange={(status) => {
                     const isCurrentlyUploading = status === 'uploading';
@@ -796,7 +796,7 @@ export default function BlogForm({
                 onChange={handleGalleryImageUpload}
                 value={formData.gallery_images}
                 disabled={isDeleting || isUploading}
-                folder='blog/gallery'
+                folder='newblogcontent'
                 multiple={true}
                 hidePreview={true}
                 onUploadStatusChange={(status) => {
@@ -870,11 +870,10 @@ export default function BlogForm({
                                     }}
                                     className={`
                                     relative aspect-video rounded-lg overflow-hidden group flex-shrink-0
-                                    ${
-                                      snapshot.isDragging
+                                    ${snapshot.isDragging
                                         ? 'opacity-0'
                                         : 'opacity-100'
-                                    }
+                                      }
                                     hover:ring-2 hover:ring-[#8B4513] transition-all
                                   `}
                                   >
@@ -918,9 +917,8 @@ export default function BlogForm({
                                           }}
                                           className='p-1.5 bg-white rounded-full opacity-0 group-hover:opacity-100 shadow-lg transition-all text-gray-600 hover:bg-gray-100'
                                           type='button'
-                                          aria-label={`Edit alt text for gallery image ${
-                                            index + 1
-                                          }`}
+                                          aria-label={`Edit alt text for gallery image ${index + 1
+                                            }`}
                                           title='Edit alt text'
                                         >
                                           <RiEdit2Line size={16} />
@@ -935,9 +933,8 @@ export default function BlogForm({
                                           }}
                                           className='p-1.5 bg-white rounded-full text-gray-600 opacity-0 group-hover:opacity-100 hover:bg-gray-100 shadow-lg transition-all'
                                           type='button'
-                                          aria-label={`Preview gallery image ${
-                                            index + 1
-                                          }`}
+                                          aria-label={`Preview gallery image ${index + 1
+                                            }`}
                                           title='Preview image'
                                         >
                                           <RiZoomInLine size={16} />
@@ -950,9 +947,8 @@ export default function BlogForm({
                                           }
                                           className='p-1.5 bg-white rounded-full text-red-600 opacity-0 group-hover:opacity-100 hover:bg-red-50 shadow-lg transition-all'
                                           type='button'
-                                          aria-label={`Delete gallery image ${
-                                            index + 1
-                                          }`}
+                                          aria-label={`Delete gallery image ${index + 1
+                                            }`}
                                           title='Delete image'
                                         >
                                           <RiCloseLine size={16} />
@@ -963,10 +959,10 @@ export default function BlogForm({
                                       {formData.galleryImageAlts?.[
                                         imageUrl
                                       ] && (
-                                        <div className='absolute bottom-2 left-2 bg-black bg-opacity-50 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-medium z-30'>
-                                          Alt text added
-                                        </div>
-                                      )}
+                                          <div className='absolute bottom-2 left-2 bg-black bg-opacity-50 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-medium z-30'>
+                                            Alt text added
+                                          </div>
+                                        )}
                                     </div>
                                   </div>
                                 )}
@@ -1051,9 +1047,8 @@ export default function BlogForm({
                     }
                     handleSubmit(e, true);
                   }}
-                  className={`bg-gray-50 text-gray-600 hover:bg-gray-100 ${
-                    isUploading ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                  className={`bg-gray-50 text-gray-600 hover:bg-gray-100 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   disabled={isUploading}
                   title={
                     isUploading
@@ -1079,21 +1074,20 @@ export default function BlogForm({
                     }
                     handleSubmit(e, false);
                   }}
-                  className={`${
-                    isFormComplete() && !isUploading
+                  className={`${isFormComplete() && !isUploading
                       ? 'bg-[#8B4513] text-white hover:bg-[#693610]'
                       : 'bg-brown-100 text-brown-300 cursor-not-allowed opacity-50'
-                  }`}
+                    }`}
                   title={
                     isUploading
                       ? 'Please wait for upload to complete'
                       : !isFormComplete()
-                      ? `Cannot publish: Missing ${getMissingFields().join(
+                        ? `Cannot publish: Missing ${getMissingFields().join(
                           ', '
                         )}`
-                      : initialData
-                      ? 'Update blog post'
-                      : 'Publish blog post'
+                        : initialData
+                          ? 'Update blog post'
+                          : 'Publish blog post'
                   }
                 >
                   {!isFormComplete() ? (
@@ -1237,9 +1231,8 @@ export default function BlogForm({
               setDeleteImageIndex(null);
             }
           }}
-          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
-            isDeleting ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
+          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           disabled={isDeleting}
           showCancelButton={!isDeleting}
           allowBackgroundCancel={!isDeleting}
@@ -1325,9 +1318,8 @@ export default function BlogForm({
               setShowImageDeleteWarning(false);
             }
           }}
-          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${
-            isDeleting ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
+          confirmButtonClassName={`bg-red-600 hover:bg-red-700 text-white ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           disabled={isDeleting}
           showCancelButton={!isDeleting}
           allowBackgroundCancel={!isDeleting}
@@ -1447,8 +1439,8 @@ export default function BlogForm({
             </div>
           }
           confirmLabel='Please wait...'
-          onConfirm={() => {}}
-          onCancel={() => {}}
+          onConfirm={() => { }}
+          onCancel={() => { }}
           confirmButtonClassName='bg-brown-600 hover:bg-brown-700'
           showCancelButton={false}
           showCloseButton={false}
@@ -1466,8 +1458,8 @@ export default function BlogForm({
           altTextModal.imageType === 'featured'
             ? formData.featuredImageAlt || ''
             : altTextModal.galleryIndex !== undefined
-            ? formData.galleryImageAlts?.[altTextModal.imageUrl] || ''
-            : ''
+              ? formData.galleryImageAlts?.[altTextModal.imageUrl] || ''
+              : ''
         }
         imageUrl={altTextModal.imageUrl}
         title={
